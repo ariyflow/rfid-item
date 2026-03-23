@@ -1,0 +1,810 @@
+
+"""
+RFID Connect Layer - 串口调试工具
+基于 PySide6 的串口通信工具，支持日志输出和扩展
+
+文件结构:
+    - main.py: 主程序
+    - test.ui: Qt Designer UI 文件 (可选，用于参考)
+
+运行方式:
+    cd ~/code/rfid-item/connect-layer
+    source .venv/bin/activate
+    python main.py
+"""
+
+import sys
+import serial
+import serial.tools.list_ports
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QMessageBox, QFileDialog,
+    QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
+    QLabel, QPushButton, QComboBox, QDoubleSpinBox,
+    QPlainTextEdit, QLineEdit, QCheckBox, QRadioButton,
+    QFrame, QSpacerItem, QSizePolicy, QWidget, QSplitter,
+    QTabWidget
+)
+from PySide6.QtCore import QThread, Signal, QObject, Qt, QFile, QIODevice
+from PySide6.QtGui import QFont
+
+
+# ============================================================
+# 日志级别定义
+# ============================================================
+class LogLevel(Enum):
+    """日志级别枚举"""
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+
+# ============================================================
+# 日志类 - 核心日志输出模块
+# ============================================================
+class Logger(QObject):
+    """
+    日志输出类
+    
+    【如何使用日志输出】
+    ================
+    1. 在主窗口中访问：self.logger.info("消息")
+    
+    2. 可用方法:
+       - self.logger.debug("调试信息")     # 详细调试信息
+       - self.logger.info("普通信息")       # 一般信息
+       - self.logger.warning("警告信息")    # 警告
+       - self.logger.error("错误信息")      # 错误
+       - self.logger.critical("严重错误")   # 严重错误
+    
+    3. 便捷方法:
+       - self.logger.rx(data, hex_mode)    # 接收数据日志
+       - self.logger.tx(data, hex_mode)    # 发送数据日志
+    
+    4. 设置日志级别:
+       self.logger.set_level(LogLevel.DEBUG)  # 显示所有日志
+       self.logger.set_level(LogLevel.INFO)   # 只显示 INFO 及以上
+    
+    5. 日志格式:
+       [HH:MM:SS.mmm] [LEVEL] 消息内容
+    
+    6. 扩展示例 (在其他模块中):
+       # 方式 1: 通过信号
+       logger.log_signal.connect(your_handler)
+       
+       # 方式 2: 直接调用
+       logger = Logger()
+       logger.info("自定义消息")
+    """
+    # 日志信号：时间戳、级别、消息
+    log_signal = Signal(str, str, str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.log_level = LogLevel.INFO
+        self._log_history = []
+    
+    def set_level(self, level: LogLevel):
+        """设置日志级别"""
+        self.log_level = level
+    
+    def _get_timestamp(self) -> str:
+        """获取当前时间戳"""
+        return datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    
+    def _emit_log(self, level: LogLevel, message: str):
+        """内部日志发射方法"""
+        level_order = {LogLevel.DEBUG: 0, LogLevel.INFO: 1, LogLevel.WARNING: 2, 
+                       LogLevel.ERROR: 3, LogLevel.CRITICAL: 4}
+        if level_order[level] >= level_order[self.log_level]:
+            timestamp = self._get_timestamp()
+            log_entry = f"[{timestamp}] [{level.value}] {message}"
+            self._log_history.append(log_entry)
+            self.log_signal.emit(timestamp, level.value, message)
+    
+    def debug(self, message: str):
+        """DEBUG 级别日志"""
+        self._emit_log(LogLevel.DEBUG, message)
+    
+    def info(self, message: str):
+        """INFO 级别日志"""
+        self._emit_log(LogLevel.INFO, message)
+    
+    def warning(self, message: str):
+        """WARNING 级别日志"""
+        self._emit_log(LogLevel.WARNING, message)
+    
+    def error(self, message: str):
+        """ERROR 级别日志"""
+        self._emit_log(LogLevel.ERROR, message)
+    
+    def critical(self, message: str):
+        """CRITICAL 级别日志"""
+        self._emit_log(LogLevel.CRITICAL, message)
+    
+    def rx(self, data: bytes, hex_mode: bool = False):
+        """接收数据日志"""
+        if hex_mode:
+            hex_str = ' '.join(f'{b:02X}' for b in data)
+            self.debug(f"<- RX [{len(data)} bytes]: {hex_str}")
+        else:
+            try:
+                text = data.decode('utf-8', errors='replace')
+                self.debug(f"<- RX [{len(data)} bytes]: {text}")
+            except:
+                self.debug(f"<- RX [{len(data)} bytes]: {data}")
+    
+    def tx(self, data: bytes, hex_mode: bool = False):
+        """发送数据日志"""
+        if hex_mode:
+            hex_str = ' '.join(f'{b:02X}' for b in data)
+            self.info(f"-> TX [{len(data)} bytes]: {hex_str}")
+        else:
+            try:
+                text = data.decode('utf-8', errors='replace')
+                self.info(f"-> TX [{len(data)} bytes]: {text}")
+            except:
+                self.info(f"-> TX [{len(data)} bytes]: {data}")
+    
+    def get_history(self) -> list:
+        """获取日志历史"""
+        return self._log_history.copy()
+    
+    def clear_history(self):
+        """清空日志历史"""
+        self._log_history.clear()
+
+
+# ============================================================
+# 串口工作线程
+# ============================================================
+class SerialWorker(QObject):
+    """串口通信工作线程"""
+    
+    data_received = Signal(bytes)
+    connected = Signal(bool)
+    error_occurred = Signal(str)
+    
+    def __init__(self):
+        super().__init__()
+        self.serial: Optional[serial.Serial] = None
+        self._running = False
+        self._read_thread: Optional[QThread] = None
+        self._lock = QThread()  # 用于线程安全
+    
+    def connect(self, port: str, baudrate: int, timeout: float) -> bool:
+        """连接串口"""
+        try:
+            self.serial = serial.Serial(
+                port=port,
+                baudrate=baudrate,
+                timeout=timeout,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE
+            )
+            self._running = True
+            self.connected.emit(True)
+            return True
+        except serial.SerialException as e:
+            self.error_occurred.emit(f"串口连接失败：{str(e)}")
+            self.connected.emit(False)
+            return False
+        except Exception as e:
+            self.error_occurred.emit(f"未知错误：{str(e)}")
+            self.connected.emit(False)
+            return False
+    
+    def disconnect(self):
+        """断开串口连接"""
+        self._running = False
+        if self.serial:
+            try:
+                if self.serial.is_open:
+                    self.serial.close()
+            except:
+                pass
+        self.serial = None
+        self.connected.emit(False)
+    
+    def send(self, data: bytes) -> bool:
+        """发送数据"""
+        if self.serial and self.serial.is_open:
+            try:
+                self.serial.write(data)
+                self.serial.flush()
+                return True
+            except serial.SerialException as e:
+                self.error_occurred.emit(f"发送失败：{str(e)}")
+                return False
+            except Exception as e:
+                self.error_occurred.emit(f"发送错误：{str(e)}")
+                return False
+        return False
+    
+    def read_all(self) -> bytes:
+        """读取所有可用数据"""
+        if self.serial and self.serial.is_open:
+            try:
+                return self.serial.read_all()
+            except serial.SerialException:
+                return b''
+        return b''
+    
+    def is_open(self) -> bool:
+        """检查串口是否打开"""
+        return self.serial is not None and self.serial.is_open
+    
+    def start_reading(self):
+        """开始读取线程"""
+        self._read_thread = QThread()
+        self.moveToThread(self._read_thread)
+        self._read_thread.started.connect(self._read_loop)
+        self._read_thread.start()
+    
+    def _read_loop(self):
+        """读取循环"""
+        while self._running:
+            if self.serial and self.serial.is_open:
+                try:
+                    data = self.serial.read_all()
+                    if data:
+                        self.data_received.emit(data)
+                except serial.SerialException:
+                    pass
+                except Exception:
+                    pass
+            QThread.msleep(50)
+    
+    def stop_reading(self):
+        """停止读取线程"""
+        self._running = False
+        if self._read_thread:
+            self._read_thread.quit()
+            self._read_thread.wait()
+            self._read_thread = None
+
+
+# ============================================================
+# 主窗口
+# ============================================================
+class SerialToolWindow(QMainWindow):
+    """主窗口类"""
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.logger = Logger(self)
+        self.serial_worker = SerialWorker()
+        self.bytes_sent = 0
+        self.bytes_received = 0
+        self._is_connected = False
+        
+        self._setup_window()
+        self._create_ui()
+        self._connect_signals()
+        self._init_ui_values()
+        
+        self.logger.info("应用程序启动")
+    
+    def _setup_window(self):
+        """设置窗口属性"""
+        self.setWindowTitle("串口调试工具 - RFID Connect Layer")
+        self.setMinimumSize(900, 700)
+    
+    def _create_ui(self):
+        """创建 UI 界面"""
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # === 1. 串口配置区域 ===
+        settings_group = QGroupBox("串口配置")
+        settings_layout = QGridLayout(settings_group)
+        
+        # 端口选择
+        settings_layout.addWidget(QLabel("端口 (Port):"), 0, 0)
+        self.comboPort = QComboBox()
+        self.comboPort.setMinimumWidth(200)
+        settings_layout.addWidget(self.comboPort, 0, 1)
+        
+        self.btnRefresh = QPushButton("刷新")
+        self.btnRefresh.setMaximumWidth(100)
+        settings_layout.addWidget(self.btnRefresh, 0, 2)
+        
+        # 波特率
+        settings_layout.addWidget(QLabel("波特率 (Baudrate):"), 1, 0)
+        self.comboBaudrate = QComboBox()
+        self.comboBaudrate.setMinimumWidth(200)
+        settings_layout.addWidget(self.comboBaudrate, 1, 1)
+        
+        # 超时
+        settings_layout.addWidget(QLabel("超时 (Timeout):"), 2, 0)
+        self.spinTimeout = QDoubleSpinBox()
+        self.spinTimeout.setMinimumWidth(200)
+        self.spinTimeout.setSuffix(" s")
+        self.spinTimeout.setDecimals(2)
+        self.spinTimeout.setMinimum(0.01)
+        self.spinTimeout.setMaximum(10.0)
+        self.spinTimeout.setValue(1.0)
+        settings_layout.addWidget(self.spinTimeout, 2, 1)
+        
+        # 连接/断开按钮 - 同一个按钮，根据状态切换文字
+        self.btnConnect = QPushButton("打开串口")
+        self.btnConnect.setMinimumWidth(120)
+        self.btnConnect.setStyleSheet("QPushButton { font-weight: bold; padding: 8px; }")
+        settings_layout.addWidget(self.btnConnect, 1, 2, 2, 1)
+        
+        # 状态显示
+        settings_layout.addWidget(QLabel("状态:"), 3, 0)
+        self.labelConnectionStatus = QLabel("未连接")
+        self.labelConnectionStatus.setStyleSheet("color: red; font-weight: bold;")
+        settings_layout.addWidget(self.labelConnectionStatus, 3, 1)
+        
+        main_layout.addWidget(settings_group)
+        
+        # === 2. 数据收发区域 - 使用 Tab 拆分接收和发送 ===
+        data_group = QGroupBox("数据收发")
+        data_layout = QVBoxLayout(data_group)
+        
+        # 使用 TabWidget 拆分接收区和发送区
+        self.tabData = QTabWidget()
+        
+        # 接收区 Tab
+        receive_widget = QWidget()
+        receive_layout = QVBoxLayout(receive_widget)
+        
+        # 接收区工具栏
+        rx_toolbar = QHBoxLayout()
+        self.checkHexReceive = QCheckBox("HEX 显示")
+        rx_toolbar.addWidget(self.checkHexReceive)
+        rx_toolbar.addStretch()
+        self.btnClearRx = QPushButton("清空接收区")
+        rx_toolbar.addWidget(self.btnClearRx)
+        receive_layout.addLayout(rx_toolbar)
+        
+        # 接收区文本框 (只读)
+        self.textReceive = QPlainTextEdit()
+        self.textReceive.setFont(QFont("Monospace", 10))
+        self.textReceive.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+                padding: 5px;
+            }
+        """)
+        self.textReceive.setPlaceholderText("接收到的数据将显示在这里...")
+        self.textReceive.setReadOnly(True)  # 接收区只读，不能输入
+        receive_layout.addWidget(self.textReceive)
+        
+        self.tabData.addTab(receive_widget, "接收区")
+        
+        # 发送区 Tab
+        send_widget = QWidget()
+        send_layout = QVBoxLayout(send_widget)
+        
+        # 发送区工具栏
+        tx_toolbar = QHBoxLayout()
+        self.checkHexSend = QCheckBox("HEX 发送")
+        tx_toolbar.addWidget(self.checkHexSend)
+        tx_toolbar.addStretch()
+        self.btnClearTx = QPushButton("清空发送区")
+        tx_toolbar.addWidget(self.btnClearTx)
+        send_layout.addLayout(tx_toolbar)
+        
+        # 发送区文本框 (可编辑，显示历史)
+        self.textSend = QPlainTextEdit()
+        self.textSend.setFont(QFont("Monospace", 10))
+        self.textSend.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+                padding: 5px;
+            }
+        """)
+        self.textSend.setPlaceholderText("发送历史记录 (只读)")
+        self.textSend.setReadOnly(True)  # 历史记录只读
+        self.textSend.setMinimumHeight(150)
+        send_layout.addWidget(self.textSend)
+        
+        # 发送输入框
+        send_input_layout = QHBoxLayout()
+        self.lineEditSend = QLineEdit()
+        self.lineEditSend.setPlaceholderText("输入要发送的数据，按 Enter 发送")
+        send_input_layout.addWidget(self.lineEditSend)
+        
+        self.btnSend = QPushButton("发送")
+        self.btnSend.setMinimumWidth(100)
+        send_input_layout.addWidget(self.btnSend)
+        
+        send_layout.addLayout(send_input_layout)
+        
+        self.tabData.addTab(send_widget, "发送区")
+        
+        data_layout.addWidget(self.tabData)
+        main_layout.addWidget(data_group)
+        
+        # === 3. 日志输出区域 ===
+        log_group = QGroupBox("日志输出")
+        log_layout = QVBoxLayout(log_group)
+        log_layout.setSpacing(5)
+        
+        # 日志工具栏
+        log_toolbar = QHBoxLayout()
+        log_toolbar.addWidget(QLabel("日志级别:"))
+        
+        self.comboLogLevel = QComboBox()
+        self.comboLogLevel.setMaximumWidth(100)
+        log_toolbar.addWidget(self.comboLogLevel)
+        
+        log_toolbar.addStretch()
+        
+        self.btnClearLog = QPushButton("清空日志")
+        log_toolbar.addWidget(self.btnClearLog)
+        
+        self.btnExportLog = QPushButton("导出日志")
+        log_toolbar.addWidget(self.btnExportLog)
+        
+        log_layout.addLayout(log_toolbar)
+        
+        # 日志显示区
+        self.textLog = QPlainTextEdit()
+        self.textLog.setFont(QFont("Monospace", 9))
+        self.textLog.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #0d1117;
+                color: #c9d1d9;
+                border: 1px solid #30363d;
+                border-radius: 4px;
+                padding: 5px;
+            }
+        """)
+        self.textLog.setReadOnly(True)
+        self.textLog.setPlaceholderText("日志信息将显示在这里...")
+        self.textLog.setMinimumHeight(120)
+        log_layout.addWidget(self.textLog)
+        
+        main_layout.addWidget(log_group)
+        
+        # === 4. 状态栏 ===
+        self.frameStatus = QFrame()
+        self.frameStatus.setFrameShape(QFrame.StyledPanel)
+        status_layout = QHBoxLayout(self.frameStatus)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.labelStats = QLabel("统计：发送 0 字节 | 接收 0 字节")
+        status_layout.addWidget(self.labelStats)
+        status_layout.addStretch()
+        
+        main_layout.addWidget(self.frameStatus)
+    
+    def _init_ui_values(self):
+        """初始化 UI 值"""
+        # 波特率选项
+        baudrates = [300, 1200, 2400, 4800, 9600, 14400, 19200, 
+                     38400, 57600, 115200, 230400, 460800, 921600]
+        self.comboBaudrate.addItems([str(b) for b in baudrates])
+        self.comboBaudrate.setCurrentText("115200")
+        
+        # 日志级别选项
+        for level in LogLevel:
+            self.comboLogLevel.addItem(level.value, level.value)
+        self.comboLogLevel.setCurrentText("INFO")
+        
+        # 刷新串口列表
+        self._refresh_ports()
+    
+    def _connect_signals(self):
+        """连接所有信号"""
+        # 日志信号
+        self.logger.log_signal.connect(self._append_log)
+        
+        # 按钮信号
+        self.btnRefresh.clicked.connect(self._refresh_ports)
+        self.btnConnect.clicked.connect(self._toggle_connection)
+        self.btnSend.clicked.connect(self._send_data)
+        self.btnClearRx.clicked.connect(self._clear_receive)
+        self.btnClearTx.clicked.connect(self._clear_send)
+        self.btnClearLog.clicked.connect(self._clear_log)
+        self.btnExportLog.clicked.connect(self._export_log)
+        
+        # 串口数据信号
+        self.serial_worker.data_received.connect(self._on_data_received)
+        self.serial_worker.connected.connect(self._on_connection_changed)
+        self.serial_worker.error_occurred.connect(self._on_error)
+        
+        # 日志级别切换
+        self.comboLogLevel.currentTextChanged.connect(self._on_log_level_changed)
+        
+        # Enter 键发送
+        self.lineEditSend.returnPressed.connect(self._send_data)
+    
+    # ============================================================
+    # 日志输出方法
+    # ============================================================
+    def log(self, message: str, level: str = "INFO"):
+        """通用日志输出方法"""
+        log_func = getattr(self.logger, level.lower(), self.logger.info)
+        log_func(message)
+    
+    def _append_log(self, timestamp: str, level: str, message: str):
+        """追加日志到显示区"""
+        log_text = f"[{timestamp}] [{level}] {message}\n"
+        
+        colors = {
+            "DEBUG": "#6a9955",
+            "INFO": "#569cd6",
+            "WARNING": "#dcdcaa",
+            "ERROR": "#f48771",
+            "CRITICAL": "#c586c0"
+        }
+        color = colors.get(level, "#c9d1d9")
+        
+        self.textLog.appendHtml(f'<span style="color: {color}">{log_text}</span>')
+        scrollbar = self.textLog.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+    
+    def _clear_log(self):
+        """清空日志"""
+        self.textLog.clear()
+        self.logger.clear_history()
+        self.logger.info("日志已清空")
+    
+    def _export_log(self):
+        """导出日志到文件"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "导出日志", "", "Text Files (*.txt);;All Files (*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(self.logger.get_history()))
+                self.logger.info(f"日志已导出到：{file_path}")
+                QMessageBox.information(self, "成功", f"日志已导出到:\n{file_path}")
+            except Exception as e:
+                self.logger.error(f"导出日志失败：{str(e)}")
+                QMessageBox.critical(self, "错误", f"导出失败:\n{str(e)}")
+    
+    def _on_log_level_changed(self, level: str):
+        """日志级别改变"""
+        log_level = LogLevel(level)
+        self.logger.set_level(log_level)
+        self.logger.info(f"日志级别已设置为：{level}")
+    
+    # ============================================================
+    # 串口控制方法
+    # ============================================================
+    def _refresh_ports(self):
+        """刷新串口列表"""
+        current = self.comboPort.currentData()
+        self.comboPort.clear()
+        
+        ports = serial.tools.list_ports.comports()
+        for port in sorted(ports, key=lambda p: p.device):
+            display = f"{port.device} - {port.description}"
+            self.comboPort.addItem(display, port.device)
+        
+        if self.comboPort.count() == 0:
+            self.comboPort.addItem("未找到串口", "")
+            self.logger.warning("未找到可用串口")
+        else:
+            index = self.comboPort.findData(current)
+            if index >= 0:
+                self.comboPort.setCurrentIndex(index)
+            self.logger.info(f"找到 {self.comboPort.count()} 个串口")
+    
+    def _toggle_connection(self):
+        """切换串口连接状态"""
+        if self._is_connected:
+            self._disconnect()
+        else:
+            self._connect()
+    
+    def _connect(self):
+        """连接串口"""
+        port = self.comboPort.currentData()
+        if not port:
+            QMessageBox.warning(self, "警告", "请选择有效的串口端口")
+            return
+        
+        # 检查是否选择了有效端口
+        if self.comboPort.currentText() == "未找到串口":
+            QMessageBox.warning(self, "警告", "未找到可用串口，请检查设备连接")
+            return
+        
+        baudrate = int(self.comboBaudrate.currentText())
+        timeout = self.spinTimeout.value()
+        
+        self.logger.info(f"正在连接串口：{port} @ {baudrate}")
+        self.serial_worker.connect(port, baudrate, timeout)
+    
+    def _disconnect(self):
+        """断开串口连接"""
+        self.logger.info("正在断开串口连接")
+        self.serial_worker.stop_reading()
+        self.serial_worker.disconnect()
+    
+    def _on_connection_changed(self, connected: bool):
+        """连接状态改变"""
+        self._is_connected = connected
+        
+        if connected:
+            self.btnConnect.setText("关闭串口")
+            self.btnConnect.setStyleSheet(
+                "QPushButton { background-color: #e74c3c; color: white; "
+                "font-weight: bold; padding: 8px; }"
+            )
+            self.labelConnectionStatus.setText("已连接")
+            self.labelConnectionStatus.setStyleSheet("color: green; font-weight: bold;")
+            self._enable_controls(True)
+            port = self.comboPort.currentText()
+            self.logger.info(f"串口已连接：{port}")
+            self.serial_worker.start_reading()
+        else:
+            self.btnConnect.setText("打开串口")
+            self.btnConnect.setStyleSheet(
+                "QPushButton { font-weight: bold; padding: 8px; }"
+            )
+            self.labelConnectionStatus.setText("未连接")
+            self.labelConnectionStatus.setStyleSheet("color: red; font-weight: bold;")
+            self._enable_controls(False)
+            self.logger.info("串口已断开")
+    
+    def _enable_controls(self, enabled: bool):
+        """启用/禁用控件"""
+        self.comboPort.setEnabled(not enabled)
+        self.comboBaudrate.setEnabled(not enabled)
+        self.spinTimeout.setEnabled(not enabled)
+        self.btnRefresh.setEnabled(not enabled)
+        self.btnSend.setEnabled(enabled)
+        self.lineEditSend.setEnabled(enabled)
+    
+    def _on_error(self, error: str):
+        """错误处理"""
+        self.logger.error(error)
+        QMessageBox.critical(self, "错误", error)
+        # 发生错误时重置连接状态
+        self._is_connected = False
+        self.btnConnect.setText("打开串口")
+        self.btnConnect.setStyleSheet("QPushButton { font-weight: bold; padding: 8px; }")
+        self.labelConnectionStatus.setText("未连接")
+        self.labelConnectionStatus.setStyleSheet("color: red; font-weight: bold;")
+        self._enable_controls(False)
+    
+    # ============================================================
+    # 数据收发方法
+    # ============================================================
+    def _send_data(self):
+        """发送数据"""
+        data_text = self.lineEditSend.text()
+        if not data_text:
+            self.logger.warning("发送数据为空")
+            return
+        
+        if not self._is_connected:
+            self.logger.error("串口未连接，无法发送数据")
+            QMessageBox.warning(self, "警告", "请先打开串口")
+            return
+        
+        hex_mode = self.checkHexSend.isChecked()
+        
+        try:
+            if hex_mode:
+                # HEX 模式发送 - 清理空格和逗号
+                clean_hex = data_text.replace(' ', '').replace(',', '').upper()
+                # 验证 HEX 格式
+                if len(clean_hex) % 2 != 0:
+                    self.logger.error(f"HEX 格式错误：长度为奇数")
+                    QMessageBox.warning(self, "警告", "HEX 数据长度必须为偶数")
+                    return
+                if not all(c in '0123456789ABCDEF' for c in clean_hex):
+                    self.logger.error(f"HEX 格式错误：包含非法字符")
+                    QMessageBox.warning(self, "警告", "HEX 数据只能包含 0-9, A-F")
+                    return
+                data = bytes.fromhex(clean_hex)
+            else:
+                data = data_text.encode('utf-8')
+            
+            if self.serial_worker.send(data):
+                self.bytes_sent += len(data)
+                self._update_stats()
+                self.logger.tx(data, hex_mode)
+                
+                # 显示到发送历史
+                if hex_mode:
+                    hex_str = ' '.join(f'{b:02X}' for b in data)
+                    self.textSend.appendPlainText(f">>> {hex_str}")
+                else:
+                    self.textSend.appendPlainText(f">>> {data_text}")
+                
+                self.lineEditSend.clear()
+            else:
+                self.logger.error("发送失败：串口未连接")
+        except ValueError as e:
+            self.logger.error(f"HEX 转换错误：{str(e)}")
+            QMessageBox.warning(self, "警告", f"HEX 格式错误:\n{str(e)}")
+        except Exception as e:
+            self.logger.error(f"发送数据错误：{str(e)}")
+            QMessageBox.critical(self, "错误", f"发送失败:\n{str(e)}")
+    
+    def _on_data_received(self, data: bytes):
+        """接收数据回调"""
+        if data:
+            self.bytes_received += len(data)
+            self._update_stats()
+            
+            hex_mode = self.checkHexReceive.isChecked()
+            self.logger.rx(data, hex_mode)
+            
+            # 显示到接收区
+            if hex_mode:
+                hex_str = ' '.join(f'{b:02X}' for b in data)
+                self.textReceive.appendPlainText(f"<<< {hex_str}")
+            else:
+                try:
+                    text = data.decode('utf-8', errors='replace')
+                    self.textReceive.appendPlainText(f"<<< {text}")
+                except:
+                    self.textReceive.appendPlainText(f"<<< {data}")
+    
+    def _clear_receive(self):
+        """清空接收区"""
+        self.textReceive.clear()
+        self.logger.info("接收区已清空")
+    
+    def _clear_send(self):
+        """清空发送区"""
+        self.textSend.clear()
+        self.logger.info("发送区已清空")
+    
+    def _update_stats(self):
+        """更新统计信息"""
+        self.labelStats.setText(
+            f"统计：发送 {self.bytes_sent} 字节 | 接收 {self.bytes_received} 字节"
+        )
+    
+    # ============================================================
+    # 窗口事件
+    # ============================================================
+    def closeEvent(self, event):
+        """窗口关闭事件"""
+        if self._is_connected:
+            self.logger.info("正在关闭应用程序...")
+            self._disconnect()
+        self.logger.info("应用程序已关闭")
+        event.accept()
+    
+    def keyPressEvent(self, event):
+        """键盘事件 - Ctrl+Enter 也可以发送"""
+        if event.key() == Qt.Key_Return and event.modifiers() == Qt.ControlModifier:
+            self._send_data()
+        else:
+            super().keyPressEvent(event)
+
+
+# ============================================================
+# 主程序入口
+# ============================================================
+def main():
+    """主函数"""
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    
+    window = SerialToolWindow()
+    window.show()
+    
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
