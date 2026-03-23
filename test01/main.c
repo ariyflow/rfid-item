@@ -13,10 +13,11 @@ xdata unsigned char card_data[16]; // 临时存放读卡的数据
 xdata unsigned char send_buf[24]; // 发送缓冲区（发送数据可能不等长）
 xdata unsigned char receive_buf[24]; // 接收缓冲区
 xdata unsigned char status = 0x0; // 临时保存状态
-xdata unsigned char led_vector = 0x01; // led状态
 xdata ADC adc_data; // 保存获取的adc数据
 xdata unsigned char mode = 0x00; // 当前的模式
-
+xdata unsigned char counter_1s = 0x00; // 1s回调的计数
+xdata unsigned char is_stream_led = 0; // MODE1下控制led是否流水
+xdata unsigned char led_vector = 0x01; // MODE1下的下一个led状态
 
 // 计算buf数组的偶校验结果值
 unsigned char set_checksum(unsigned char* buf, unsigned char num){
@@ -35,13 +36,30 @@ code unsigned char test_data[16] = { // 测试数据
 	13,14,15,16
 };
 
+// 简单获取uid，成功返回0000 0011 = 0x03
+unsigned char simple_read_uid(unsigned char* _id){
+	xdata unsigned char tmp = 0x00, try_cnt = 10;
+	
+	while(1){
+		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
+		
+		if(tmp == 0x03) break;
+		else{ // 未成功
+			if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+			else tmp = 0; // 再次尝试
+		}
+	}
+	return tmp;
+}
+
 // 获取当前RFID的序列号，保存到参数_id中
-// 返回值为0000 0011 = 0x07表示正确
+// 返回值为0000 0111 = 0x07表示正确
 unsigned char read_uid(unsigned char* _id){
 	xdata unsigned char tmp = 0x00, try_cnt = 10;
 	
 	while(1){
-		if(PcdRequest(0x52, _id) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
 
 		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
 		
@@ -133,8 +151,37 @@ void commit_sensor_data(){
 
 }
 
-void my100msCallback(){
+/*此处进入核心部分*/
 
+void my1SCallback(){
+	if(++counter_1s == 30)counter_1s = 0;
+
+	if(mode == 1){ // 检测模式
+
+		// 检测当前是否存在RFID
+		if(simple_read_uid(uid) == 0x03){
+			is_stream_led = 1;
+		}
+		else is_stream_led = 0;
+
+		if(counter_1s == 0){ // 30s发送一次
+			commit_sensor_data();
+		}
+	}
+}
+
+void my100msCallback(){
+	if(mode == 1){
+		if(is_stream_led){
+			setLed(led_vector);
+			setSeg(uid[0]>>4,uid[0]&0x0f, uid[1]>>4,uid[1]&0x0f, uid[2]>>4,uid[2]&0x0f, uid[3]>>4,uid[3]&0x0f);
+			led_vector = (led_vector<<1)+(led_vector>>7);
+		}
+		else{
+			setLed(0x00);
+			setNum(0);
+		}
+	}
 }
 
 void myKeyCallback(){
@@ -148,9 +195,15 @@ void myKeyCallback(){
 		mode = (mode+1)%3;
 
 		// 切换后的操作
-		if(mode == 1){
+		if(mode == 0){
+			setNum(1234567);
+		}
+		else if(mode == 1){
 			setLed(0x00);
 			setNum(0);
+		}
+		else if(mode == 2){
+			setNum(2);
 		}
 	}
 
@@ -457,6 +510,7 @@ void main() {
 	setCallback(enumEventKey, myKeyCallback);
 	setCallback(enumEventAdcKey, myADCKeyCallback);
 	setCallback(enumEventUart1, myUartCallback);
+	setCallback(enumEventInt1000, my1SCallback);
 	send_buf[0] = 0xaa;
 	send_buf[1] = 0x55;
 	
