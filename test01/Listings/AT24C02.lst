@@ -1,4 +1,4 @@
-C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 1   
+C51 COMPILER V9.54   AT24C02                                                               03/23/2026 22:42:41 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE AT24C02
@@ -62,7 +62,7 @@ line level    source
   52   1        // 直接写入dat到IIC_SDA
   53   1        for(i=0;i<8;i++){
   54   2          if(dat & 0x80) IIC_SDA = 1;
-C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 2   
+C51 COMPILER V9.54   AT24C02                                                               03/23/2026 22:42:41 PAGE 2   
 
   55   2          else IIC_SDA = 0;
   56   2          dat<<=1;
@@ -126,7 +126,7 @@ line level    source
  114   2        }
  115   1      
  116   1        // Step 3: Send memory address to read from
-C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 3   
+C51 COMPILER V9.54   AT24C02                                                               03/23/2026 22:42:41 PAGE 3   
 
  117   1        if(_AT_WriteByte(addr)){
  118   2            _AT_IIC_Stop();

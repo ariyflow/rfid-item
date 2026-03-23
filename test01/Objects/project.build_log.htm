@@ -19,13 +19,13 @@ CPU DLL:         S8051.DLL V3.100.0.0
 Dialog DLL:      DP51.DLL V2.62.0.1 
 <h2>Project:</h2>
 E:\B_Task\code\rfid\test01\project.uvproj
-Project File Date:  03/20/2026
+Project File Date:  03/22/2026
 
 <h2>Output:</h2>
 Rebuild target 'Target 1'
 assembling STARTUP.A51...
 compiling main.c...
-main.c(407): warning C280: 'ver': unreferenced local variable
+main.c(443): warning C280: 'ver': unreferenced local variable
 compiling rc522.c...
 compiling adc.c...
 compiling display.c...
@@ -35,16 +35,16 @@ compiling uart1.c...
 compiling AT24C02.c...
 linking...
 *** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_DELAY_MS?MAIN
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
     SEGMENT: ?PR?_PCDVALUE?RC522
 *** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
     SEGMENT: ?PR?_PCDBAKVALUE?RC522
 *** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
-    SEGMENT: ?PR?_SETNUM?DISPLAY
-*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
     SEGMENT: ?PR?_ADDPOINT?DISPLAY
 *** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
     SEGMENT: ?PR?_T0INIT?SYS
-Program Size: data=47.1 xdata=255 code=8180
+Program Size: data=43.1 xdata=256 code=8200
 creating hex file from ".\Objects\project"...
 ".\Objects\project" - 0 Error(s), 6 Warning(s).
 </pre>
