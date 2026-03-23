@@ -1,0 +1,152 @@
+C51 COMPILER V9.54   RC522                                                                 03/20/2026 21:25:44 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE RC522
+OBJECT MODULE PLACED IN .\Objects\rc522.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE rc522.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Lis
+                    -tings\rc522.lst) TABS(2) OBJECT(.\Objects\rc522.obj)
+
+line level    source
+
+   1          #include "rc522.h"
+   2          #include <intrins.h>
+   3          
+   4          // 所有局部变量必须加 xdata，防止 data 区溢出 (指导书要求)
+   5          #define TRUE  1
+   6          #define FALSE 0
+   7          
+   8          // ==========================================
+   9          // 底层 SPI 写寄存器
+  10          // ==========================================
+  11          void WriteRawRC(unsigned char Address, unsigned char value) {
+  12   1          xdata unsigned char i, ucAddr;
+  13   1          
+  14   1          MF522_SCK = 1;        // 空闲状态 (物理低)
+  15   1          MF522_NSS = 0;        // 片选有效
+  16   1          
+  17   1          // 地址格式：[6 位地址][1 位 0(写)][1 位 0]
+  18   1          ucAddr = ((Address << 1) & 0x7E);
+  19   1          
+  20   1          // 发送地址
+  21   1          for(i = 8; i > 0; i--) {
+  22   2              // 【关键】MOSI 经过反向器，需要取反输出
+  23   2              MF522_SI = !((ucAddr & 0x80) == 0x80);
+  24   2              
+  25   2              MF522_SCK = 0;    // 产生上升沿 (物理)，RC522 采样
+  26   2              _nop_();
+  27   2              ucAddr <<= 1;
+  28   2              MF522_SCK = 1;    // 恢复空闲
+  29   2          }
+  30   1          
+  31   1          // 发送数据
+  32   1          for(i = 8; i > 0; i--) {
+  33   2              // 【关键】MOSI 经过反向器，需要取反输出
+  34   2              MF522_SI = !((value & 0x80) == 0x80);
+  35   2              
+  36   2              MF522_SCK = 0;
+  37   2              _nop_();
+  38   2              value <<= 1;
+  39   2              MF522_SCK = 1;
+  40   2          }
+  41   1          
+  42   1          MF522_NSS = 1;        // 取消片选
+  43   1          MF522_SCK = 1;        // 恢复空闲
+  44   1      }
+  45          
+  46          // ==========================================
+  47          // 底层 SPI 读寄存器
+  48          // ==========================================
+  49          unsigned char ReadRawRC(unsigned char Address) {
+  50   1          xdata unsigned char i, ucAddr;
+  51   1          xdata unsigned char ucResult = 0;
+  52   1          
+  53   1          MF522_SCK = 1;        // 空闲状态
+  54   1          MF522_NSS = 0;        // 片选有效
+C51 COMPILER V9.54   RC522                                                                 03/20/2026 21:25:44 PAGE 2   
+
+  55   1          
+  56   1          // 地址格式：[6 位地址][1 位 1(读)][1 位 0]
+  57   1          ucAddr = ((Address << 1) & 0x7E) | 0x80;
+  58   1          
+  59   1          // 发送地址
+  60   1          for(i = 8; i > 0; i--) {
+  61   2              MF522_SI = !((ucAddr & 0x80) == 0x80); // 取反
+  62   2              MF522_SCK = 0;
+  63   2              _nop_();
+  64   2              ucAddr <<= 1;
+  65   2              MF522_SCK = 1;
+  66   2          }
+  67   1          
+  68   1          // 接收数据
+  69   1          for(i = 8; i > 0; i--) {
+  70   2              MF522_SCK = 0;    // 产生时钟
+  71   2              _nop_();
+  72   2              ucResult <<= 1;
+  73   2              
+  74   2              // 【关键】MISO 直连，直接读取，不用取反
+  75   2              if(MF522_SO) {
+  76   3                  ucResult |= 0x01;
+  77   3              }
+  78   2              
+  79   2              MF522_SCK = 1;    // 恢复空闲
+  80   2          }
+  81   1          
+  82   1          MF522_NSS = 1;
+  83   1          MF522_SCK = 1;
+  84   1          
+  85   1          return ucResult;
+  86   1      }
+  87          
+  88          // ==========================================
+  89          // 硬件初始化 (严格匹配指导书 RC522Init)
+  90          // ==========================================
+  91          void RC522Init() {
+  92   1          // 1. 配置 P4 口为推挽输出 (驱动反向器)
+  93   1          P4M1 &= 0xE1;   // 1110 0001
+  94   1          P4M0 |= 0x1E;   // 0001 1110 (P4.1-P4.4 推挽)
+  95   1          
+  96   1          // 2. 配置 P1.0 为高阻输入 (MISO)
+  97   1          P1M1 |= 0x01;
+  98   1          P1M0 &= 0xFE;
+  99   1          
+ 100   1          // 3. 配置 P1.1 为推挽输出 (NSS)
+ 101   1          P1M1 &= 0xFD;
+ 102   1          P1M0 |= 0x02;
+ 103   1          
+ 104   1          // 4. 初始电平状态
+ 105   1          MF522_NSS = 1;      // 未选中
+ 106   1          MF522_SCK = 1;      // 空闲 (物理低)
+ 107   1          MF522_SI  = 1;      // 空闲 (物理低)
+ 108   1          MF522_SO  = 0;      // 输入无关
+ 109   1          
+ 110   1          // 5. 设置 RC522 通信模式 (SPI)
+ 111   1          // 指导书：EA=1, IIC=0 表示 SPI (因有反向器，MCU 输出相反)
+ 112   1          MF522_EA  = 0;      // 物理 1
+ 113   1          MF522_IIC = 1;      // 物理 0 (SPI 模式)
+ 114   1          
+ 115   1          // 6. 软复位
+ 116   1          WriteRawRC(CommandReg, 0x0F); // SoftReset
+C51 COMPILER V9.54   RC522                                                                 03/20/2026 21:25:44 PAGE 3   
+
+ 117   1      }
+ 118          
+ 119          // ==========================================
+ 120          // 检查版本寄存器
+ 121          // ==========================================
+ 122          unsigned char CheckVersion() {
+ 123   1          return ReadRawRC(VersionReg); // 正常应返回 0x91 或 0x92
+ 124   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    244    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

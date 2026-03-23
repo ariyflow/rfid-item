@@ -1,0 +1,9 @@
+
+# ignore suffix files
+*.zip
+*.log
+*.bak
+
+# ignore directory
+**/.venv/
+**/__pycache__/

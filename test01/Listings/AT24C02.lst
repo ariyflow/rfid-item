@@ -1,0 +1,188 @@
+C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE AT24C02
+OBJECT MODULE PLACED IN .\Objects\AT24C02.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE AT24C02.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\L
+                    -istings\AT24C02.lst) TABS(2) OBJECT(.\Objects\AT24C02.obj)
+
+line level    source
+
+   1          #include "AT24C02.h"
+   2          #include "regdef.h"
+   3          
+   4          sfr P5 = 0xC8;
+   5          sfr P5M1 = 0xC9;
+   6          sfr P5M0 = 0xCA;
+   7          
+   8          sbit IIC_SDA = P4^0;
+   9          sbit IIC_SCL = P5^5;
+  10          
+  11          static void delay_us(unsigned int us){
+  12   1          xdata unsigned char i;
+  13   1          while (us--) {
+  14   2              i = 3; while (i--);
+  15   2          }
+  16   1      }
+  17          
+  18          static void delay_ms(unsigned int ms){
+  19   1          xdata unsigned char i, j;
+  20   1          for (i = ms; i > 0; i--)
+  21   1              for (j = 123; j > 0; j--);
+  22   1      }
+  23          
+  24          
+  25          void ATInit(){
+  26   1        // IIC 使用开漏
+  27   1        P5M1 |= (1<<5); P5M0 |= (1<<5);
+  28   1        P4M1 |= (1<<0); P4M0 |= (1<<0);
+  29   1      }
+  30          
+  31          void _AT_IIC_Start(void){
+  32   1        IIC_SCL = 1;
+  33   1        IIC_SDA = 1;
+  34   1        delay_us(5);
+  35   1        IIC_SDA = 0;
+  36   1        delay_us(5);
+  37   1        IIC_SCL = 0;
+  38   1      }
+  39          
+  40          void _AT_IIC_Stop(void){
+  41   1        IIC_SDA = 0;
+  42   1        IIC_SCL = 1;
+  43   1        delay_us(5);
+  44   1        IIC_SDA = 1;
+  45   1      }
+  46          
+  47          // 该函数为直写入IIC_SDA
+  48          bit _AT_WriteByte(unsigned char dat){
+  49   1        xdata unsigned char i;
+  50   1        bit ack;
+  51   1        
+  52   1        // 直接写入dat到IIC_SDA
+  53   1        for(i=0;i<8;i++){
+  54   2          if(dat & 0x80) IIC_SDA = 1;
+C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 2   
+
+  55   2          else IIC_SDA = 0;
+  56   2          dat<<=1;
+  57   2          delay_us(5);
+  58   2          IIC_SCL = 1;
+  59   2          delay_us(5);
+  60   2          IIC_SCL = 0;
+  61   2        }
+  62   1        
+  63   1        IIC_SDA = 1;
+  64   1        delay_us(5);
+  65   1        IIC_SCL = 1;
+  66   1        delay_us(5);
+  67   1        ack = IIC_SDA;
+  68   1        IIC_SCL = 0;
+  69   1        return ack;
+  70   1      }
+  71          
+  72          // 从 I2C 总线读取一个字节
+  73          unsigned char _AT_ReadByte(bit ack){
+  74   1        xdata unsigned char i;
+  75   1        xdata unsigned char dat = 0;
+  76   1        IIC_SDA = 1;  // 释放总线（准备读）
+  77   1      
+  78   1        for(i = 0; i < 8; i++){
+  79   2          IIC_SCL = 1;
+  80   2          delay_us(5);
+  81   2          dat <<= 1;
+  82   2          if(IIC_SDA) dat |= 0x01;   // 读取 SDA 电平
+  83   2          IIC_SCL = 0;
+  84   2          delay_us(5);
+  85   2        }
+  86   1      
+  87   1        // 主机发送 ACK/NACK
+  88   1        if(ack){
+  89   2          IIC_SDA = 1;  // NACK
+  90   2        }
+  91   1        else{
+  92   2          IIC_SDA = 0;  // ACK
+  93   2        }
+  94   1        delay_us(5);
+  95   1        IIC_SCL = 1;
+  96   1        delay_us(5);
+  97   1        IIC_SCL = 0;
+  98   1        IIC_SDA = 1;  // 释放 SDA（为 Stop 做准备）
+  99   1      
+ 100   1        return dat;
+ 101   1      }
+ 102          
+ 103          unsigned char rAT(unsigned char addr){
+ 104   1        xdata unsigned char dat;
+ 105   1        xdata unsigned char device_addr = 0xA0;  // AT24C02 写地址
+ 106   1      
+ 107   1        // Step 1: Start
+ 108   1        _AT_IIC_Start();
+ 109   1      
+ 110   1        // Step 2: Send device write address (0xA0)
+ 111   1        if(_AT_WriteByte(device_addr)){
+ 112   2            _AT_IIC_Stop();
+ 113   2            return 0xFF;  // 地址无应答，返回错误值
+ 114   2        }
+ 115   1      
+ 116   1        // Step 3: Send memory address to read from
+C51 COMPILER V9.54   AT24C02                                                               03/22/2026 18:14:51 PAGE 3   
+
+ 117   1        if(_AT_WriteByte(addr)){
+ 118   2            _AT_IIC_Stop();
+ 119   2            return 0xFF;  // 地址写入无应答
+ 120   2        }
+ 121   1      
+ 122   1        // Step 4: Repeated Start
+ 123   1        _AT_IIC_Start();
+ 124   1      
+ 125   1        // Step 5: Send device read address (0xA1)
+ 126   1        if(_AT_WriteByte(device_addr | 0x01)){
+ 127   2            _AT_IIC_Stop();
+ 128   2            return 0xFF;  // 读地址无应答
+ 129   2        }
+ 130   1      
+ 131   1        // Step 6: Read one byte, send NACK
+ 132   1        dat = _AT_ReadByte(1);  // 1 = NACK
+ 133   1      
+ 134   1        // Step 7: Stop
+ 135   1        _AT_IIC_Stop();
+ 136   1      
+ 137   1        return dat;
+ 138   1      }
+ 139          
+ 140          void wAT(unsigned char addr, unsigned char val){
+ 141   1          xdata unsigned char device_addr = 0xA0;  // AT24C02 的 I2C 写地址（7位地址 0x50 << 1 | 0）
+ 142   1      
+ 143   1          // Step 1: Start
+ 144   1          _AT_IIC_Start();
+ 145   1      
+ 146   1          // Step 2: Send device write address (0xA0)
+ 147   1          _AT_WriteByte(device_addr);   // 可加应答检查，但此处简化
+ 148   1      
+ 149   1          // Step 3: Send memory address
+ 150   1          _AT_WriteByte(addr);
+ 151   1      
+ 152   1          // Step 4: Send data byte
+ 153   1          _AT_WriteByte(val);
+ 154   1      
+ 155   1          // Step 5: Stop — 触发 EEPROM 内部写入
+ 156   1          _AT_IIC_Stop();
+ 157   1      
+ 158   1          // Step 6: 等待写周期完成（典型值 5ms，最大 10ms）
+ 159   1          delay_ms(50);  // 必须延时！否则下一次操作可能失败
+ 160   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    348    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       9
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

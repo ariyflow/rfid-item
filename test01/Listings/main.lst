@@ -1,0 +1,480 @@
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\List
+                    -ings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <regx52.h>
+   2          #include "rc522.h"
+   3          #include "sys.h"
+   4          #include "display.h"
+   5          #include "uart1.h"
+   6          #include "key.h"
+   7          #include "adc.h"
+   8          #include "AT24C02.h"
+   9          
+  10          xdata unsigned char uid[4]; // 放置RFID的序列号
+  11          xdata unsigned char card_key[6] = {0xff,0xff,0xff,0xff,0xff,0xff}; // 验证的密钥
+  12          xdata unsigned char card_data[16]; // 临时存放读卡的数据
+  13          xdata unsigned char send_buf[24]; // 发送缓冲区（发送数据可能不等长）
+  14          xdata unsigned char receive_buf[24]; // 接收缓冲区
+  15          xdata unsigned char status = 0x0; // 临时保存状态
+  16          xdata unsigned char led_vector = 0x01; // led状态
+  17          xdata ADC adc_data; // 保存获取的adc数据
+  18          
+  19          
+  20          // 计算buf数组的偶校验结果值
+  21          unsigned char set_checksum(unsigned char* buf, unsigned char num){
+  22   1        xdata unsigned char i;
+  23   1        xdata unsigned char tmp = 0x00;
+  24   1        for(i=0;i<num;i++){
+  25   2          tmp ^= buf[i];
+  26   2        }
+  27   1        return tmp;
+  28   1      }
+  29          
+  30          code unsigned char test_data[16] = { // 测试数据
+  31            1,2,3,4,
+  32            5,6,7,8,
+  33            9,10,11,12,
+  34            13,14,15,16
+  35          };
+  36          
+  37          // 获取当前RFID的序列号，保存到参数_id中
+  38          // 返回值为0000 0011 = 0x07表示正确
+  39          unsigned char read_uid(unsigned char* _id){
+  40   1        xdata unsigned char tmp = 0x00, try_cnt = 10;
+  41   1        
+  42   1        while(1){
+  43   2          if(PcdRequest(0x52, _id) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+  44   2      
+  45   2          if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
+  46   2          
+  47   2          // 要获取uid，其实不需要这一步，但是为了停机，先选卡
+  48   2          if(PcdSelect(_id) == 0) tmp |= (1<<2); // 选卡，选择UID对应的卡片
+  49   2          
+  50   2          if(tmp == 0x07) break;
+  51   2          else{ // 未成功
+  52   3            if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+  53   3            else tmp = 0; // 再次尝试
+  54   3          }
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 2   
+
+  55   2        }
+  56   1        PcdHalt();
+  57   1        return tmp;
+  58   1      }
+  59          
+  60          // 正确返回0010 1111 = 0x2f
+  61          // 只需要传入_addr，_uid和_buf会保存RFID的uid和读取到的数据
+  62          unsigned char readRFID(unsigned char _addr, unsigned char* _uid,unsigned char* _buf){ // 尝试读取uid�
+             -�于addr的数据
+  63   1        xdata unsigned char tmp = 0x00, try_cnt = 10;
+  64   1        while(1){
+  65   2          if(PcdRequest(0x52, _uid) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+  66   2      
+  67   2          if(PcdAnticoll(_uid) == 0)tmp |= (1<<1); // 防冲突，返回uid
+  68   2      
+  69   2          if(PcdSelect(_uid) == 0) tmp |= (1<<2); // 选卡，选择UID对应的卡片
+  70   2      
+  71   2          if(PcdAuthState(0x61, _addr, card_key, _uid) == 0) tmp |= (1<<3);
+  72   2      
+  73   2          // if(PcdWrite(_addr, test_data) == 0) status |= (1<<4);
+  74   2      
+  75   2          if(PcdRead(_addr, _buf) == 0) tmp |= (1<<5);
+  76   2          
+  77   2          if(tmp == 0x2f) break;
+  78   2          else{ // 未成功
+  79   3            if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+  80   3            else tmp = 0; // 再次尝试
+  81   3          }
+  82   2        }
+  83   1      
+  84   1        
+  85   1        PcdHalt();
+  86   1        return tmp;
+  87   1      }
+  88          
+  89          // 向地址_addr写入_data
+  90          // 成功返回0001 1111=0x1F
+  91          unsigned char writeRFID(unsigned char _addr, unsigned char* _data){
+  92   1        xdata unsigned char tmp = 0x00, try_cnt = 10;
+  93   1        xdata unsigned char _uid[4];
+  94   1        while(1){
+  95   2          if(PcdRequest(0x52, _uid) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+  96   2      
+  97   2          if(PcdAnticoll(_uid) == 0)tmp |= (1<<1); // 防冲突，返回uid
+  98   2      
+  99   2          if(PcdSelect(_uid) == 0) tmp |= (1<<2); // 选卡，选择UID对应的卡片
+ 100   2      
+ 101   2          if(PcdAuthState(0x61, _addr, card_key, _uid) == 0) tmp |= (1<<3);
+ 102   2      
+ 103   2          if(PcdWrite(_addr, _data) == 0) tmp |= (1<<4);
+ 104   2      
+ 105   2          // if(PcdRead(_addr, _buf) == 0) tmp |= (1<<5);
+ 106   2          
+ 107   2          if(tmp == 0x1f) break;
+ 108   2          else{ // 未成功
+ 109   3            if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+ 110   3            else tmp = 0; // 再次尝试
+ 111   3          }
+ 112   2        }
+ 113   1      
+ 114   1        
+ 115   1        PcdHalt();
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 3   
+
+ 116   1        return tmp;
+ 117   1      }
+ 118          
+ 119          void my100msCallback(){
+ 120   1      
+ 121   1      }
+ 122          
+ 123          void myKeyCallback(){
+ 124   1        xdata unsigned char key;
+ 125   1        key = getKeyAct(enumKey1);
+ 126   1        if(key == enumKeyPress){
+ 127   2          // WriteRawRC(CommandReg,PCD_RESETPHASE);
+ 128   2      
+ 129   2      //    send_buf[0] = ReadRawRC(CommandReg);
+ 130   2      //    send_buf[1] = ReadRawRC(ModeReg);
+ 131   2      //    send_buf[2] = ReadRawRC(TReloadRegL);
+ 132   2      //    send_buf[3] = ReadRawRC(TReloadRegH);
+ 133   2      //    send_buf[4] = ReadRawRC(TModeReg);
+ 134   2      //    send_buf[5] = ReadRawRC(TPrescalerReg);
+ 135   2      //    send_buf[6] = ReadRawRC(TxAskReg);
+ 136   2      //    send_buf[7] = 0xAA;
+ 137   2      //    uart1Send(send_buf, 8);
+ 138   2      //    setLed(0xa3);
+ 139   2      
+ 140   2          // 获取uid
+ 141   2          if(read_uid(uid)!=0x07)return;
+ 142   2          uart1Send(uid, 4);
+ 143   2        }
+ 144   1        key = getKeyAct(enumKey2);
+ 145   1        if(key == enumKeyPress){
+ 146   2      
+ 147   2          // 返回序列号和地址20的数据
+ 148   2          status = readRFID(20, uid, card_data);
+ 149   2          if(status != 0x2F){ // 失败返回状态码
+ 150   3            send_buf[2] = status;
+ 151   3            uart1Send(send_buf, 3);
+ 152   3          }
+ 153   2          else{
+ 154   3            uart1Send(uid, 4);
+ 155   3            uart1Send(card_data, 16);
+ 156   3          }
+ 157   2          // do {
+ 158   2          //  status = readRFID(20, uid, card_data);
+ 159   2          // }
+ 160   2          // while(status != 0x2f);
+ 161   2          // uart1Send(uid, 4);
+ 162   2          // uart1Send(card_data, 16);
+ 163   2        }
+ 164   1        // ReadCardData(uid, card_buf);
+ 165   1      }
+ 166          
+ 167          void myADCKeyCallback(){
+ 168   1        xdata unsigned char key;
+ 169   1        key = getADCKeyAct(enumADCKey3);
+ 170   1        if(key == enumKeyPress){
+ 171   2      
+ 172   2          // 向地址20写入数据
+ 173   2          send_buf[2] = writeRFID(20, test_data);
+ 174   2          uart1Send(send_buf, 3);
+ 175   2        }
+ 176   1        key = getADCKeyAct(enumADCKeyUp);
+ 177   1        if(key == enumKeyPress){
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 4   
+
+ 178   2      
+ 179   2        }
+ 180   1        key = getADCKeyAct(enumADCKeyDown);
+ 181   1        if(key == enumKeyPress){
+ 182   2      
+ 183   2        }
+ 184   1        key = getADCKeyAct(enumADCKeyLeft);
+ 185   1        if(key == enumKeyPress){
+ 186   2          // 写入失败，返回失败的数据帧
+ 187   2          // 包头2+数据字节1+指令字节1+返回状态1+偶校验1=6
+ 188   2          send_buf[2]=0x03;
+ 189   2          send_buf[3]=0x02;
+ 190   2          send_buf[4]=0x00;
+ 191   2          send_buf[5]=set_checksum(send_buf, 5);
+ 192   2          uart1Send(send_buf, 6);
+ 193   2        }
+ 194   1        key = getADCKeyAct(enumADCKeyRight);
+ 195   1        if(key == enumKeyPress){
+ 196   2      
+ 197   2        }
+ 198   1        
+ 199   1      }
+ 200          
+ 201          void myUartCallback(){
+ 202   1        // 串口收到数据固定为24字节，第2字节固定为指令字节
+ 203   1        xdata unsigned char command = 0xff; // 指令字节
+ 204   1        xdata unsigned char write_addr = 0x00; // 要写入数据的地址
+ 205   1        
+ 206   1        // 回显
+ 207   1        // uart1Send(receive_buf, 24);
+ 208   1        // return;
+ 209   1      
+ 210   1      
+ 211   1      
+ 212   1        // 收到数据后，首先进行偶校验判断
+ 213   1        if(receive_buf[23] != set_checksum(receive_buf, 23)) return;
+ 214   1        
+ 215   1        command = receive_buf[2];
+ 216   1        if(command == 0x00){
+ 217   2          // 00 - 发送序列号，2固定为6，3固定为0，4-7为4字节序列号，8为偶校验
+ 218   2          // 包头2+字节数1+指令字节1+序列号4+偶校验1=9
+ 219   2          
+ 220   2          // uart1Send(send_buf, 2);
+ 221   2          if(read_uid(uid)!=0x07){ // 失败，发送DEBUG数据帧，告知失败
+ 222   3            send_buf[2] = 1;
+ 223   3            send_buf[3] = 0xFF;
+ 224   3            send_buf[4] = 0x02;
+ 225   3            send_buf[5] = set_checksum(send_buf, 5);
+ 226   3            uart1Send(send_buf, 6);
+ 227   3            return;
+ 228   3          }
+ 229   2          // uart1Send(uid, 4);
+ 230   2          
+ 231   2          send_buf[2] = 6;
+ 232   2          send_buf[3] = 0;
+ 233   2          send_buf[4] = uid[0];
+ 234   2          send_buf[5] = uid[1];
+ 235   2          send_buf[6] = uid[2];
+ 236   2          send_buf[7] = uid[3];
+ 237   2          send_buf[8] = set_checksum(send_buf, 8);
+ 238   2      
+ 239   2          uart1Send(send_buf, 9);
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 5   
+
+ 240   2        }
+ 241   1        else if(command == 0x01){
+ 242   2          // 01 - 获取某个地址的值（这里假设获取0x20，数据为1-16）
+ 243   2          // 2固定为0x13，3固定为01，4为地址（0x20），5-20为数据，21为偶校验
+ 244   2          // 包头2+数据字节1+指令字节1+读取地址1+数据16+偶校验1=22
+ 245   2          send_buf[2]=0x13;
+ 246   2          send_buf[3]=0x01;
+ 247   2          send_buf[4]=receive_buf[3]; // 读取地址
+ 248   2          
+ 249   2          if(readRFID(receive_buf[3], uid, card_data) != 0x2F){
+ 250   3            send_buf[2] = 3; // 返回失败帧
+ 251   3            send_buf[3] = 0xFF;
+ 252   3            send_buf[4] = 0x01;
+ 253   3            send_buf[5] = set_checksum(send_buf, 5);
+ 254   3            uart1Send(send_buf, 6);
+ 255   3            return;
+ 256   3          }
+ 257   2          
+ 258   2          send_buf[5]=card_data[0];
+ 259   2          send_buf[6]=card_data[1];
+ 260   2          send_buf[7]=card_data[2];
+ 261   2          send_buf[8]=card_data[3];
+ 262   2          send_buf[9]=card_data[4];
+ 263   2          send_buf[10]=card_data[5];
+ 264   2          send_buf[11]=card_data[6];
+ 265   2          send_buf[12]=card_data[7];
+ 266   2          send_buf[13]=card_data[8];
+ 267   2          send_buf[14]=card_data[9];
+ 268   2          send_buf[15]=card_data[10];
+ 269   2          send_buf[16]=card_data[11];
+ 270   2          send_buf[17]=card_data[12];
+ 271   2          send_buf[18]=card_data[13];
+ 272   2          send_buf[19]=card_data[14];
+ 273   2          send_buf[20]=card_data[15];
+ 274   2          send_buf[21]=set_checksum(send_buf, 21);
+ 275   2          uart1Send(send_buf, 22);
+ 276   2        }
+ 277   1        else if(command == 0x02){
+ 278   2          // 02 - 写入某个地址数据，这条指令需要分开处理，这里是成功写入地址0x20的�
+             -�试
+ 279   2          // 2固定0x13, 3固定0x02, 4固定0x01(成功), 5-20为数据，21为偶校验
+ 280   2          // 包头2+数据字节1+指令字节1+返回状态1+数据16+偶校验1=22
+ 281   2          
+ 282   2          if(writeRFID(receive_buf[3], &receive_buf[4]) != 0x1f){
+ 283   3            // 写入失败只发送DEBUG数据，不发送协议规定的数据包了
+ 284   3            send_buf[2] = 3;
+ 285   3            send_buf[3] = 0xFF;
+ 286   3            send_buf[4] = 3;
+ 287   3            send_buf[5] = set_checksum(send_buf, 5);
+ 288   3            uart1Send(send_buf, 6);
+ 289   3            return;
+ 290   3          }
+ 291   2      
+ 292   2          send_buf[2]=0x13;
+ 293   2          send_buf[3]=0x02;
+ 294   2          send_buf[4]=0x01;
+ 295   2          send_buf[5]=receive_buf[4];
+ 296   2          send_buf[6]=receive_buf[5];
+ 297   2          send_buf[7]=receive_buf[6];
+ 298   2          send_buf[8]=receive_buf[7];
+ 299   2          send_buf[9]=receive_buf[8];
+ 300   2          send_buf[10]=receive_buf[9];
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 6   
+
+ 301   2          send_buf[11]=receive_buf[10];
+ 302   2          send_buf[12]=receive_buf[11];
+ 303   2          send_buf[13]=receive_buf[12];
+ 304   2          send_buf[14]=receive_buf[13];
+ 305   2          send_buf[15]=receive_buf[14];
+ 306   2          send_buf[16]=receive_buf[15];
+ 307   2          send_buf[17]=receive_buf[16];
+ 308   2          send_buf[18]=receive_buf[17];
+ 309   2          send_buf[19]=receive_buf[18];
+ 310   2          send_buf[20]=receive_buf[19];
+ 311   2          send_buf[21]=set_checksum(send_buf, 21);
+ 312   2          uart1Send(send_buf, 22);
+ 313   2        }
+ 314   1        else if(command == 0x03){
+ 315   2          // 03 - 获取传感器数据，此时传输传感器数据即可
+ 316   2          // 包头2+数据字节1+指令字节1+温度2+光照2+霍尔1+振动1+偶校验1=11
+ 317   2          
+ 318   2          adc_data = getAdc();
+ 319   2          
+ 320   2          send_buf[2]=0x08;
+ 321   2          send_buf[3]=0x03;
+ 322   2          send_buf[4]=(adc_data.adcTem>>8); // 温度
+ 323   2          send_buf[5]=(adc_data.adcTem&0xff);
+ 324   2          send_buf[6]=(adc_data.adcLum>>8); // 光照
+ 325   2          send_buf[7]=(adc_data.adcLum&0xff);
+ 326   2          send_buf[8]=(adc_data.adcHall); // 霍尔
+ 327   2          send_buf[9]=0; // 振动
+ 328   2          send_buf[10]=set_checksum(send_buf, 10);
+ 329   2          uart1Send(send_buf, 11);
+ 330   2        }
+ 331   1        else if(command == 0x04){
+ 332   2          /* 04 - 设置从机序列号，此时需要设置从机序号为receive_buf[3:9]
+ 333   2          成功时返回：
+ 334   2            aa 55 08 04 receive_buf[3:9] chk_sum
+ 335   2          失败时返回：(其实失败了也检查不出来，所以不会返回失败的数据帧，写入失�
+             -��应该会返回一个无效帧，可以在log中查看)
+ 336   2            aa 55 03 04 00 chk_sum
+ 337   2          
+ 338   2          */
+ 339   2          
+ 340   2          wAT(0x50, receive_buf[3]);
+ 341   2          wAT(0x51, receive_buf[4]);
+ 342   2          wAT(0x52, receive_buf[5]);
+ 343   2          wAT(0x53, receive_buf[6]);
+ 344   2          wAT(0x54, receive_buf[7]);
+ 345   2          wAT(0x55, receive_buf[8]);
+ 346   2      
+ 347   2          send_buf[2] = 0x08;
+ 348   2          send_buf[3] = 0x04;
+ 349   2          send_buf[4] = rAT(0x50);
+ 350   2          send_buf[5] = rAT(0x51);
+ 351   2          send_buf[6] = rAT(0x52);
+ 352   2          send_buf[7] = rAT(0x53);
+ 353   2          send_buf[8] = rAT(0x54);
+ 354   2          send_buf[9] = rAT(0x55);
+ 355   2          send_buf[10] = set_checksum(send_buf, 10);
+ 356   2      
+ 357   2          uart1Send(send_buf, 11);
+ 358   2        }
+ 359   1        else{
+ 360   2      
+ 361   2        }
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 7   
+
+ 362   1      }
+ 363          
+ 364          //void main(){
+ 365          //  
+ 366          //  sysInit();
+ 367          //  disInit();
+ 368          
+ 369          //  uart1Init(9600);
+ 370          //  send_buf[0] = 0xaa;
+ 371          //  send_buf[1] = 0x55;
+ 372          //  setUart1Buf(receive_buf, 24, send_buf, 2);
+ 373          //  adcInit();
+ 374          //  rc522Init();
+ 375          
+ 376          //  setSeg(0,0,0,0,0,0,0,0);
+ 377          //  
+ 378          //  setCallback(enumEventInt100, my100msCallback);
+ 379          //  setCallback(enumEventKey, myKeyCallback);
+ 380          //  setCallback(enumEventAdcKey, myADCKeyCallback);
+ 381          //  setCallback(enumEventUart1, myUartCallback);
+ 382          //  
+ 383          //  setLed(0x15);
+ 384          //  
+ 385          //  while(1){
+ 386          //    sysRun();
+ 387          //  }
+ 388          //}
+ 389          
+ 390          void delay_ms(unsigned int xms)   //@11.0592MHz
+ 391          {
+ 392   1        unsigned char i, j;
+ 393   1          while(xms--){
+ 394   2              _nop_();
+ 395   2              _nop_();
+ 396   2              _nop_();
+ 397   2              i = 11;
+ 398   2              j = 190;
+ 399   2              do
+ 400   2              {
+ 401   3                  while (--j);
+ 402   3              } while (--i);
+ 403   2          }
+ 404   1      }
+ 405          
+ 406          void main() {
+ 407   1        unsigned char ver;
+ 408   1        
+ 409   1        sysInit();
+ 410   1        disInit();
+ 411   1        ATInit();
+ 412   1          uart1Init(9600);
+ 413   1        
+ 414   1        setUart1Buf(receive_buf, 24, send_buf, 2);
+ 415   1        
+ 416   1        // adc初始化时，当时将p1.0和p1.1设置为了ADC引脚，导致这里错误
+ 417   1        // 现已解决
+ 418   1        adcInit(); // 暂时不能开adc的中断
+ 419   1        
+ 420   1        setCallback(enumEventInt100, my100msCallback);
+ 421   1        setCallback(enumEventKey, myKeyCallback);
+ 422   1        setCallback(enumEventAdcKey, myADCKeyCallback);
+ 423   1        setCallback(enumEventUart1, myUartCallback);
+C51 COMPILER V9.54   MAIN                                                                  03/22/2026 18:14:51 PAGE 8   
+
+ 424   1        send_buf[0] = 0xaa;
+ 425   1        send_buf[1] = 0x55;
+ 426   1        
+ 427   1        setLed(0x15);
+ 428   1        setSeg(0,1,2,3,4,5,6,7);
+ 429   1      
+ 430   1        rc522Init();
+ 431   1        delay_ms(1000);
+ 432   1          
+ 433   1        while(1) {
+ 434   2            // ver = ReadRawRC(VersionReg);
+ 435   2            // uart1Send(&ver, 1);
+ 436   2            sysRun();
+ 437   2          }
+ 438   1      }
+*** WARNING C280 IN LINE 407 OF main.c: 'ver': unreferenced local variable
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1732    ----
+   CONSTANT SIZE    =     16    ----
+   XDATA SIZE       =     88      16
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      18
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

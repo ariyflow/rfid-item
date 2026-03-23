@@ -1,0 +1,148 @@
+C51 COMPILER V9.54   FM                                                                    03/20/2026 15:41:43 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE FM
+OBJECT MODULE PLACED IN .\Objects\fm.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE fm.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\fm.lst) TABS(2) OBJECT(.\Objects\fm.obj)
+
+line level    source
+
+   1          #include "regdef.h"
+   2          
+   3          // 定义 IAP15F2K61S2 的特殊功能寄存器
+   4          sbit SCL = P4^5; // SCLK -> P4.5
+   5          sbit SDA = P2^7; // SDIO -> P2.7
+   6          sfr WDT_CONTR = 0xC1;
+   7          
+   8          xdata unsigned int _fre = 1061;
+   9          xdata unsigned char _fm_volume = 15; // 0-15
+  10          
+  11          unsigned char fm_init_data[8] = {
+  12              0xD0, 0x11,   // reg02
+  13              0x24, 0x58,   // reg03
+  14              0x00, 0x2A,   // reg04
+  15              0x00, 0x8F    // reg05
+  16          };
+  17          
+  18          // 延时函数（适用于 12MHz 晶振）
+  19          void delay_us(unsigned int us){
+  20   1          xdata unsigned char i;
+  21   1          while (us--) {
+  22   2              i = 3; while (i--);
+  23   2          }
+  24   1      }
+  25          
+  26          void delay_ms(unsigned int ms){
+  27   1          xdata unsigned char i, j;
+  28   1          for (i = ms; i > 0; i--)
+  29   1              for (j = 123; j > 0; j--);
+  30   1      }
+  31          
+  32          void fmInit(){
+  33   1        P2M1 |= 0x80; P2M0 |= 0x80;
+  34   1        P4M1 |= 0x20; P4M0 |= 0x20;
+  35   1      }
+  36          
+  37          // I2C 启动条件
+  38          void I2C_Start(void){
+  39   1          SDA = 1;
+  40   1          SCL = 1;
+  41   1          delay_us(5);
+  42   1          SDA = 0;
+  43   1          delay_us(5);
+  44   1          SCL = 0;
+  45   1      }
+  46          
+  47          // I2C 停止条件
+  48          void I2C_Stop(void){
+  49   1          SDA = 0;
+  50   1          SCL = 1;
+  51   1          delay_us(5);
+  52   1          SDA = 1;
+  53   1      }
+  54          
+C51 COMPILER V9.54   FM                                                                    03/20/2026 15:41:43 PAGE 2   
+
+  55          // 发送一个字节，返回 ACK (0=ACK, 1=NACK)
+  56          bit I2C_WriteByte(unsigned char dat){
+  57   1          xdata unsigned char i;
+  58   1          bit ack;
+  59   1          for(i = 0; i < 8; i++){
+  60   2              if (dat & 0x80) SDA = 1; else SDA = 0;
+  61   2              dat <<= 1;
+  62   2              delay_us(5);
+  63   2              SCL = 1;
+  64   2              delay_us(5);
+  65   2              SCL = 0;
+  66   2          }
+  67   1          SDA = 1;  // 释放 SDA
+  68   1          delay_us(5);
+  69   1          SCL = 1;
+  70   1          delay_us(5);
+  71   1          ack = SDA;  // 读 ACK
+  72   1          SCL = 0;
+  73   1          return ack;
+  74   1      }
+  75          
+  76          // RDA5807FP 专用写入：从固定 reg 0x02 开始连续写入 len 字节数据
+  77          void RDA5807_WriteBytes(unsigned char *dat, unsigned char len){
+  78   1          xdata unsigned char i;
+  79   1          I2C_Start();
+  80   1          if (I2C_WriteByte(0x20)) {  // 写地址 0x20 (7位地址 0x10)
+  81   2              I2C_Stop();
+  82   2              return;
+  83   2          }
+  84   1          for (i = 0; i < len; i++) {
+  85   2              if (I2C_WriteByte(dat[i])) break;
+  86   2          }
+  87   1          I2C_Stop();
+  88   1      }
+  89          
+  90          // 初始化 RDA5807FP (固定 87.5 MHz, 最大音量, 12MHz 时钟, 点亮三个LED)
+  91          void RDA5807_Init(void){
+  92   1          // 软复位：reg 0x02 low=0x02 (SOFT_RESET=1), high=0x00
+  93   1          xdata unsigned char reset_data[2] = {0x00, 0x02};
+  94   1          RDA5807_WriteBytes(reset_data, 2);
+  95   1          delay_ms(10);
+  96   1      
+  97   1          // 清除复位：reg 0x02 low=0x00, high=0x00
+  98   1          reset_data[1] = 0x00;
+  99   1          RDA5807_WriteBytes(reset_data, 2);
+ 100   1          delay_ms(10);
+ 101   1          
+ 102   1      
+ 103   1          RDA5807_WriteBytes(fm_init_data, 8);
+ 104   1          delay_ms(50);  // 调谐完成延时
+ 105   1      }
+ 106          
+ 107          void update_params(unsigned int fre, unsigned char vol){
+ 108   1        xdata unsigned int tmp;
+ 109   1        tmp = ((fre-760)<<6)+0x18;
+ 110   1        fm_init_data[2] = (tmp>>8);
+ 111   1        fm_init_data[3] = (unsigned char)(tmp&0x00ff);
+ 112   1        fm_init_data[7] = ((0x80) + vol);
+ 113   1        RDA5807_Init();
+ 114   1      }
+ 115          
+ 116          void stopFM(){
+C51 COMPILER V9.54   FM                                                                    03/20/2026 15:41:43 PAGE 3   
+
+ 117   1        xdata unsigned char reset_data[2] = {0x00, 0x02};
+ 118   1        RDA5807_WriteBytes(reset_data, 2);
+ 119   1        delay_ms(10);
+ 120   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    385    ----
+   CONSTANT SIZE    =      4    ----
+   XDATA SIZE       =      3      11
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      8       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

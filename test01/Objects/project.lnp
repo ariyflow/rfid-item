@@ -1,0 +1,11 @@
+".\Objects\STARTUP.obj",
+".\Objects\main.obj",
+".\Objects\rc522.obj",
+".\Objects\adc.obj",
+".\Objects\display.obj",
+".\Objects\key.obj",
+".\Objects\sys.obj",
+".\Objects\uart1.obj",
+".\Objects\AT24C02.obj" 
+TO ".\Objects\project" 
+PRINT(".\Listings\project.m51") RAMSIZE(256) 

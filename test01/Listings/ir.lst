@@ -1,0 +1,239 @@
+C51 COMPILER V9.54   IR                                                                    03/18/2026 21:13:14 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE IR
+OBJECT MODULE PLACED IN .\Objects\ir.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE ir.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\ir.lst) TABS(2) OBJECT(.\Objects\ir.obj)
+
+line level    source
+
+   1          #include "ir.h"
+   2          #include <intrins.h>
+   3          #include "regx52.h"
+   4          #include "regdef.h"
+   5          #include "uart1.h"
+   6          #include "display.h"
+   7          
+   8          #ifndef NULL
+              #define NULL ((void*)(0))
+              #endif
+  11          
+  12          sbit IR_TX = P3^5;
+  13          sbit IR_RX = P3^6;
+  14          sfr P3M1 = 0xB1;
+  15          sfr P3M0 = 0xB2;
+  16          
+  17          // === 发送部分（阻塞式，不依赖中断）===
+  18          static void delay_us(uint16_t us) {
+  19   1          // 11.0592MHz, 12T mode: 1us ≈ 11 cycles → 粗略延时
+  20   1          while (us--) {
+  21   2              _nop_(); _nop_(); _nop_(); _nop_();
+  22   2              _nop_(); _nop_(); _nop_(); _nop_();
+  23   2              _nop_(); _nop_(); _nop_();
+  24   2          }
+  25   1      }
+  26          
+  27          static void send_carrier_us(uint16_t time_us) {
+  28   1          // 38kHz: 周期 ≈ 26.3us → 高13us + 低13us
+  29   1          uint16_t count = time_us / 26;
+  30   1          uint16_t i;
+  31   1          for (i = 0; i < count; i++) {
+  32   2              IR_TX = 1;
+  33   2              delay_us(13);
+  34   2              IR_TX = 0;
+  35   2              delay_us(13);
+  36   2          }
+  37   1      }
+  38          
+  39          void IR_SendNEC(unsigned char addr, unsigned char cmd) {
+  40   1        // 临时关闭中断（可选，防止发送被干扰）
+  41   1        unsigned char ea_save = EA;
+  42   1        // 构造32位数据：ADDR, ~ADDR, CMD, ~CMD
+  43   1        unsigned char frame[4];
+  44   1        uint8_t b;
+  45   1        int i;
+  46   1        
+  47   1        frame[0] = addr;
+  48   1        frame[1] = ~addr;
+  49   1        frame[2] = cmd;
+  50   1        frame[3] = ~cmd;
+  51   1        
+  52   1        EA = 0;
+  53   1      
+  54   1        // 引导码
+C51 COMPILER V9.54   IR                                                                    03/18/2026 21:13:14 PAGE 2   
+
+  55   1        send_carrier_us(9000);
+  56   1        delay_us(4500);
+  57   1      
+  58   1        
+  59   1      
+  60   1        // 发送32位
+  61   1        for (i = 0; i < 32; i++) {
+  62   2            b = (frame[i / 8] >> (7 - (i % 8))) & 1;
+  63   2            send_carrier_us(560);
+  64   2            if (b) {
+  65   3                delay_us(1690);
+  66   3            } else {
+  67   3                delay_us(560);
+  68   3            }
+  69   2        }
+  70   1      
+  71   1        IR_TX = 0;
+  72   1        EA = ea_save;
+  73   1      }
+  74          
+  75          // === 接收部分（状态机 + 1ms 轮询）===
+  76          static ir_recv_callback_t g_recv_callback = NULL;
+  77          
+  78          // 接收状态
+  79          #define IR_STATE_IDLE       0
+  80          #define IR_STATE_HEADER     1
+  81          #define IR_STATE_DATA       2
+  82          #define IR_STATE_ERROR      3
+  83          
+  84          static uint8_t  ir_state = IR_STATE_IDLE;
+  85          static uint16_t ir_low_time = 0;   // 当前低电平持续时间（单位：1ms）
+  86          static uint16_t ir_high_time = 0;  // 上一次高电平持续时间（用于判断引导码）
+  87          static uint8_t  ir_data[4];        // 接收缓冲
+  88          static uint8_t  ir_bit_count = 0;
+  89          
+  90          void IR_Init(void) {
+  91   1          // P3.5: 推挽输出（发送）
+  92   1          P3M0 |= 0x20; P3M1 &= ~0x20;
+  93   1          IR_TX = 0;
+  94   1      
+  95   1          // P3.6: 高阻输入（接收，需外部上拉，你的电路已有 R42=10k）
+  96   1          P3M0 &= ~0x40; P3M1 |= 0x40;
+  97   1      
+  98   1          ir_state = IR_STATE_IDLE;
+  99   1          g_recv_callback = NULL;
+ 100   1      }
+ 101          
+ 102          extern xdata unsigned char send_buf[8];
+ 103          extern void setBuf(unsigned char s0,unsigned char s1,unsigned char s2,unsigned char s3,unsigned char s4,un
+             -signed char s5,unsigned char s6,unsigned char s7);
+ 104          
+ 105          void IR_Poll(void) {
+ 106   1          static uint8_t last_rx = 1;
+ 107   1      
+ 108   1          uint8_t current_rx = IR_RX;
+ 109   1        
+ 110   1          uint8_t byte_idx;
+ 111   1          uint8_t bit_idx;
+ 112   1      
+ 113   1          
+ 114   1          if (last_rx == 1 && current_rx == 0) {
+ 115   2            
+C51 COMPILER V9.54   IR                                                                    03/18/2026 21:13:14 PAGE 3   
+
+ 116   2              // 下降沿：高电平结束
+ 117   2              // 此时 ir_high_time 是刚刚结束的高电平持续时间
+ 118   2              if (ir_state == IR_STATE_IDLE) {
+ 119   3                  // 检测引导码高电平：应≈9ms
+ 120   3                  if (ir_high_time >= 8 && ir_high_time <= 10) {
+ 121   4                      ir_state = IR_STATE_HEADER;
+ 122   4                      ir_low_time = 0;
+ 123   4                      ir_bit_count = 0;
+ 124   4                  } else {
+ 125   4                      ir_state = IR_STATE_IDLE;
+ 126   4                  }
+ 127   3              } else if (ir_state == IR_STATE_DATA) {
+ 128   3                  // 数据位高电平固定为 560us ≈ 0~1ms，这里忽略（因精度限制）
+ 129   3                  // 我们主要靠低电平宽度判断 0/1
+ 130   3              }
+ 131   2              // 重置高电平计时
+ 132   2              ir_high_time = 0;
+ 133   2          } else if (last_rx == 0 && current_rx == 1) {
+ 134   2              // 上升沿：低电平结束
+ 135   2              setSeg(1,2,3,4,5,6,7,8);
+ 136   2              if (ir_state == IR_STATE_HEADER) {
+ 137   3                
+ 138   3                  // 判断引导码低电平：应≈4.5ms
+ 139   3                  if (ir_low_time >= 4 && ir_low_time <= 5) {
+ 140   4                    
+ 141   4                      ir_state = IR_STATE_DATA;
+ 142   4                  } else {
+ 143   4                    
+ 144   4                      ir_state = IR_STATE_IDLE;
+ 145   4                  }
+ 146   3              } else if (ir_state == IR_STATE_DATA) {
+ 147   3                  // 解析数据位
+ 148   3                
+ 149   3                  uint8_t bit_val;
+ 150   3                
+ 151   3                  if (ir_low_time >= 1 && ir_low_time <= 2) {
+ 152   4                      bit_val = 0; // 560us 低
+ 153   4                  } else if (ir_low_time >= 2 && ir_low_time <= 6) {
+ 154   4                      bit_val = 1; // 1690us 低
+ 155   4                  } else {
+ 156   4                      ir_state = IR_STATE_IDLE;
+ 157   4                      last_rx = current_rx;
+ 158   4                      return;
+ 159   4                  }
+ 160   3      
+ 161   3                  // 存入数据
+ 162   3                  byte_idx = ir_bit_count / 8;
+ 163   3                  bit_idx = 7 - (ir_bit_count % 8);
+ 164   3                  if (byte_idx < 4) {
+ 165   4                      if (bit_val) ir_data[byte_idx] |= (1 << bit_idx);
+ 166   4                      else         ir_data[byte_idx] &= ~(1 << bit_idx);
+ 167   4                  }
+ 168   3                  ir_bit_count++;
+ 169   3                  
+ 170   3      
+ 171   3                  
+ 172   3                  if (ir_bit_count == 32) {
+ 173   4                      // 校验
+ 174   4                      if (ir_data[0] == (uint8_t)~ir_data[1] &&
+ 175   4                          ir_data[2] == (uint8_t)~ir_data[3]) {
+ 176   5                            
+ 177   5                          if (g_recv_callback) {
+C51 COMPILER V9.54   IR                                                                    03/18/2026 21:13:14 PAGE 4   
+
+ 178   6      
+ 179   6                              g_recv_callback(ir_data[0], ir_data[2]);
+ 180   6                          }
+ 181   5                      }
+ 182   4                      ir_state = IR_STATE_IDLE;
+ 183   4                  }
+ 184   3              }
+ 185   2              ir_low_time = 0;
+ 186   2          }
+ 187   1      
+ 188   1          // 更新电平持续时间（每 1ms）
+ 189   1          if (current_rx == 0) {
+ 190   2              ir_low_time++;
+ 191   2          } else {
+ 192   2              ir_high_time++;
+ 193   2          }
+ 194   1      
+ 195   1          // 超时保护
+ 196   1          if (ir_state != IR_STATE_IDLE) {
+ 197   2              if ((ir_state == IR_STATE_HEADER && ir_low_time > 10) ||
+ 198   2                  (ir_state == IR_STATE_DATA  && (ir_low_time > 10 || ir_high_time > 10))) {
+ 199   3                  ir_state = IR_STATE_IDLE;
+ 200   3              }
+ 201   2          }
+ 202   1      
+ 203   1          last_rx = current_rx;
+ 204   1      }
+ 205          
+ 206          void IR_SetRecvCallback(ir_recv_callback_t callback) {
+ 207   1          g_recv_callback = callback;
+ 208   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    641    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     14       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,142 @@
+C51 COMPILER V9.54   UART2                                                                 03/20/2026 15:42:15 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE UART2
+OBJECT MODULE PLACED IN .\Objects\uart2.obj
+COMPILER INVOKED BY: D:\0_SoftWare\Keil5\C51\BIN\C51.EXE mybsp\uart2.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\uart2.lst) TABS(2) OBJECT(.\Objects\uart2.obj)
+
+line level    source
+
+   1          #include "uart2.h"
+   2          #include "regdef.h"
+   3          #include "sys.h"
+   4          #include "display.h"
+   5          
+   6          sfr P3M1 = 0xB1;
+   7          sfr P3M0 = 0xB2;
+   8          sfr IE2 = 0xAF;
+   9          sfr IP2 = 0xB5;
+  10          sfr S2CON = 0x9A;
+  11          sfr P_SW2 = 0xBA;
+  12          sbit ENABLE_485 = P3^7;
+  13          sfr S2BUF = 0x9B;
+  14          
+  15          sfr T2H = 0xD6;
+  16          sfr T2L = 0xD7;
+  17          
+  18          extern xdata unsigned int eventID;
+  19          
+  20          xdata unsigned char _buf2_cursor = 0;
+  21          xdata unsigned char _buf2_num = 2;
+  22          xdata unsigned char* _buf2;
+  23          
+  24          void uart2Init(unsigned long baudrate){
+  25   1        xdata unsigned int reload;
+  26   1        // 配置 P3.7 (DE/RE), P4.7 (TX), P4.6 (RX)
+  27   1        P3M1 &= ~0x80;  P3M0 |=  0x80;   // P3.7: Push-Pull
+  28   1        P4M1 &= ~0x80;  P4M0 |=  0x80;   // P4.7: Push-Pull
+  29   1        P4M1 |=  0x40;  P4M0 &= ~0x40;   // P4.6: High-Z Input
+  30   1      
+  31   1        // 配置 Timer2 为 1T 模式，作为 UART2 波特率发生器
+  32   1        reload = 65536 - (11059200 / baudrate);
+  33   1        AUXR &= ~0x18;          // 清除 T2R (bit4) 和 T2_CT (bit3)
+  34   1        AUXR |=  0x04;          // 设置 T2x12=1 (1T mode)
+  35   1        if(baudrate == 1200){
+  36   2          T2L = 0x00; T2H = 0xf7;
+  37   2        }
+  38   1        else if(baudrate == 2400){
+  39   2            T2L = 0x50; T2H = 0xfb;
+  40   2        }
+  41   1        else if(baudrate == 4800){
+  42   2            T2L = 0xc0; T2H = 0xfd;
+  43   2        }
+  44   1        else if(baudrate == 9600){
+  45   2            T2L = 0xe0; T2H = 0xfe;
+  46   2        }
+  47   1        else if(baudrate == 19200){
+  48   2            T2L = 0x70; T2H = 0xff;
+  49   2        }
+  50   1        else if(baudrate == 38400){
+  51   2            T2L = 0xb8; T2H = 0xff;
+  52   2        }
+  53   1        else if(baudrate == 57600){
+  54   2            T2L = 0xd0; T2H = 0xff;
+C51 COMPILER V9.54   UART2                                                                 03/20/2026 15:42:15 PAGE 2   
+
+  55   2        }
+  56   1        else if(baudrate == 115200){
+  57   2            T2L = 0xe8; T2H = 0xff;
+  58   2        }
+  59   1      
+  60   1        AUXR |= 0x10;           // 启动 Timer2 (T2R=1)
+  61   1      
+  62   1        // 初始化 UART2
+  63   1        S2CON = 0x10;           // 8-bit UART, REN=1, TI/RI=0
+  64   1        P_SW2 = (P_SW2 & ~0x01) | 0x01; // 切换 UART2 到 P4.6/P4.7
+  65   1        ENABLE_485 = 0;  // 默认接收状态
+  66   1        IP2  |= 0x01;           // UART2 高优先级
+  67   1        IE2  |= 0x01;           // 使能 UART2 中断
+  68   1      }
+  69          
+  70          void uart2Send(unsigned char* content, unsigned char num){
+  71   1        xdata unsigned char* tmp;
+  72   1        IE2 &= ~0x01;
+  73   1        
+  74   1        tmp = content;
+  75   1        ENABLE_485 = 1;
+  76   1        
+  77   1        while(num--){
+  78   2          S2BUF = *tmp;
+  79   2          while((S2CON&0x02) == 0);
+  80   2          S2CON &= ~(1<<1);
+  81   2          tmp++;
+  82   2        }
+  83   1      
+  84   1        ENABLE_485 = 0;
+  85   1        IE2 |= 0x01;
+  86   1      }
+  87          
+  88          void setUart2Buf(unsigned char* buf, unsigned char buf_num){
+  89   1        _buf2 = buf;
+  90   1        _buf2_num = buf_num;
+  91   1      }
+  92          
+  93          void UART2_Routine(void) interrupt 8{
+  94   1      
+  95   1        if(S2CON&0x02)S2CON &= ~(1<<1);
+  96   1        
+  97   1        if(S2CON&0x01){
+  98   2          
+  99   2          if(_buf2_cursor < _buf2_num){
+ 100   3            _buf2[_buf2_cursor] = S2BUF;
+ 101   3            _buf2_cursor = _buf2_cursor+1;
+ 102   3            
+ 103   3            
+ 104   3            if(_buf2_cursor>=_buf2_num){ // 缓冲区满，进行判断
+ 105   4              
+ 106   4              _buf2_cursor = 0;
+ 107   4              eventID = (eventID|(1<<enumEventUart2)); // 触发事件
+ 108   4            }
+ 109   3          }
+ 110   2          
+ 111   2          
+ 112   2          S2CON &= ~(1<<0);
+ 113   2        }
+ 114   1      }
+
+
+C51 COMPILER V9.54   UART2                                                                 03/20/2026 15:42:15 PAGE 3   
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    504    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
