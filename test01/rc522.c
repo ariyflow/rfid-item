@@ -429,7 +429,7 @@ unsigned char ReadRawRC(unsigned char Address)
     xdata unsigned char i, ucAddr;
     xdata unsigned char ucResult = 0;
 	
-		EA = 0; // 关闭中断
+	// EA = 0; // 关闭中断
     
     MF522_SCK = 1;        // 空闲状态
     MF522_NSS = 0;        // 片选有效
@@ -461,7 +461,7 @@ unsigned char ReadRawRC(unsigned char Address)
     MF522_NSS = 1;
     MF522_SCK = 1;
 		
-		EA = 1; // 恢复中断
+	// EA = 1; // 恢复中断
     
     return ucResult;
      
@@ -476,7 +476,7 @@ void WriteRawRC(unsigned char Address, unsigned char value)
 {  
     xdata unsigned char i, ucAddr;
 	
-		EA = 0;
+	// EA = 0;
     
     MF522_SCK = 1;        // 空闲状态 (物理低)
     MF522_NSS = 0;        // 片选有效
@@ -508,7 +508,7 @@ void WriteRawRC(unsigned char Address, unsigned char value)
     MF522_NSS = 1;        // 取消片选
     MF522_SCK = 1;        // 恢复空闲
 		
-		EA = 1;
+	// EA = 1;
 }
 
 /////////////////////////////////////////////////////////////////////

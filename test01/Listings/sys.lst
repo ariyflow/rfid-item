@@ -1,4 +1,4 @@
-C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:17:59 PAGE 1   
+C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:29:02 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE SYS
@@ -62,7 +62,7 @@ line level    source
   50          
   51          void sysInit(){
   52   1        interruptInit();
-C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:17:59 PAGE 2   
+C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:29:02 PAGE 2   
 
   53   1        Timer0Init();
   54   1      }
@@ -111,7 +111,7 @@ line level    source
   97   2          TH0 = 0xD4;
   98   2          
   99   2          if(userCallbacks[1])userCallbacks[1](); // 触发int1事件
- 100   2          disRun();
+ 100   2          
  101   2          
  102   2          // 监测是否需要更新步进电机
  103   2      //    for(_i=0;_i<3;_i++){
@@ -126,7 +126,7 @@ line level    source
  112   4              // if(userCallbacks[0])userCallbacks[0]();// 调用第一个回调函数
  113   4              eventID = (eventID^(1<<enumEventKey));
  114   4              keyPress ^= 0x01; // 标志发生按下事件的位置
-C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:17:59 PAGE 3   
+C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:29:02 PAGE 3   
 
  115   4              
  116   4              ++key1down;
@@ -190,7 +190,7 @@ line level    source
  174   3      //          }
  175   3      //          else {// 达到预设速度
  176   3      //            _target_speed[_i] = 0xff;
-C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:17:59 PAGE 4   
+C51 COMPILER V9.54   SYS                                                                   03/23/2026 23:29:02 PAGE 4   
 
  177   3      //            _acc[_i] = 0;
  178   3      //          }
@@ -214,7 +214,7 @@ line level    source
  196          
  197          void Timer0_Routine(void) interrupt 1{
  198   1        time_flag = 1;
- 199   1      
+ 199   1        disRun();
  200   1      }
  201          
  202          // 中断0，由key1键按下引起的中断
@@ -230,7 +230,7 @@ line level    source
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    532    ----
+   CODE SIZE        =    570    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =     38    ----
    PDATA SIZE       =   ----    ----

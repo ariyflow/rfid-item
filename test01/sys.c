@@ -97,7 +97,7 @@ void sysRun(){
 		TH0 = 0xD4;
 		
 		if(userCallbacks[1])userCallbacks[1](); // 触发int1事件
-		disRun();
+		
 		
 		// 监测是否需要更新步进电机
 		for(_i=0;_i<3;_i++){
@@ -196,7 +196,7 @@ extern void uart1Send(unsigned char* content, unsigned char num);
 
 void Timer0_Routine(void) interrupt 1{
 	time_flag = 1;
-
+	disRun();
 }
 
 // 中断0，由key1键按下引起的中断
