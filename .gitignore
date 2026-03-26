@@ -3,7 +3,9 @@
 *.zip
 *.log
 *.bak
+*.rar
 
 # ignore directory
 **/.venv/
 **/__pycache__/
+**/database/
