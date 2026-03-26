@@ -7,4 +7,5 @@ requires-python = ">=3.10"
 dependencies = [
     "pyserial>=3.5",
     "pyside6>=6.10.2",
+    "requests>=2.33.0",
 ]

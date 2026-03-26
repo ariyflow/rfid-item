@@ -32,6 +32,8 @@ from PySide6.QtGui import QFont
 from PySide6 import QtUiTools
 import logging as lg
 from model.serialThread import serialThread
+from model.web_model import webModel
+import os
 
 # 常量定义
 # 安全常量
@@ -39,13 +41,6 @@ MAX_LOG_HISTORY = 10000  # 最大日志历史条数
 MAX_DISPLAY_BYTES = 1048576  # 单次最大显示字节数 (1MB)
 MAX_SEND_BYTES = 65536  # 单次最大发送字节数 (64KB)
 ALLOWED_LOG_EXTENSIONS = {'.txt', '.log', '.md'}  # 允许的日志导出扩展名
-
-lg.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="./log/app.log",
-    filemode="a",
-    encoding="utf-8"
-)
 
 # 主窗口
 class SerialToolWindow(QMainWindow):
@@ -57,25 +52,41 @@ class SerialToolWindow(QMainWindow):
         self.bytes_sent = 0
         self.bytes_received = 0
         self._is_connected = False
+
+        # 检查日志文件夹是否存在
+        self.check_dir_exists()
+
+        lg.basicConfig(
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            filename="./log/app.log",
+            filemode="a",
+            encoding="utf-8"
+        )
         
         self.log = lg.getLogger(__name__)
         self.log.setLevel(lg.DEBUG)
         
         self.log.debug("程序开始运行")
-        
+
         # 加载 UI 文件
         self._load_ui()
         
         # 初始化
         self._init_ui_values()
         self._connect_signals()
+
+        self.par = par
+        self.par.aboutToQuit.connect(self.quit_handler)
         
+        # 模块声明
         self.serialt = serialThread(self)
         self.serialt.data_received.connect(self._on_data_received)
         self.serialt.start()
-        
-        self.par = par
-        self.par.aboutToQuit.connect(self.quit_handler)
+
+        self.web = webModel(self)
+
+        # 全局变量声明
+        self.device_seq = b"" # 连接串口后，获取的设备序列号
     
     def quit_handler(self):
         if self.serialt.is_running:
@@ -86,6 +97,17 @@ class SerialToolWindow(QMainWindow):
             self.serialt.quit()
             self.serialt.wait()
     
+    def check_dir_exists(self):
+        """检查必须的文件目录是否存在
+
+        """
+        if not os.path.exists("./log"):
+            os.mkdir("./log")
+            # self.log.warning("检测到目录\"./log\"不存在，已创建目录")
+
+        if not os.path.exists("./log/app.log"):
+            open("./log/app.log", "w").close()
+
     def _load_ui(self):
         """从 UI 文件加载界面"""
         # 获取 UI 文件路径（相对于脚本位置）
@@ -311,6 +333,20 @@ class SerialToolWindow(QMainWindow):
         except Exception as e:
             self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
+    def _send_fetch_device_seq_handler(self):
+        """发送获取设备序列号的数据帧
+        该函数要求在串口打开后调用
+
+        """
+        tmp = b"\xaa\x55\x05"+b"\x00"*20
+        tmp = tmp+self._get_check_sum(tmp)
+        self.serialt.send_data(tmp)
+
+    # def submit_sensor_data_handler(self):
+    #     """向应用层发送传感器数据，包含设备序列号和时间戳
+    #     """
+    #     self.web.submit_sensor_data(self.device_seq, 25.0, 123, 1)
+
     def _btnServerConnectHandler(self):
         self.log.debug("send server connect handler.")
     
@@ -443,6 +479,7 @@ class SerialToolWindow(QMainWindow):
         self.serialt.open_serial(port, baudrate, timeout)
         if self.serialt.serial.is_open:
             self._on_connection_changed(True)
+            self._send_fetch_device_seq_handler()
     
     def _disconnect(self):
         """断开串口连接"""
@@ -609,6 +646,9 @@ class SerialToolWindow(QMainWindow):
             elif command == 0x04: # 返回写入序列号的结果
                 self.log.info(f"收到写入序列号后返回的数据帧：{self._show_btyes_with_space(data)}")
                 self.output_data_text.appendPlainText(f"set seq success: {self._show_btyes_with_space(data[4:10])}")
+            elif command == 0x05: # 获取从机序列号
+                self.device_seq = int.from_bytes(data[4:-1], byteorder="big")
+                self.log.info(f"获取到连接从机的序列号：{self.device_seq}")
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
