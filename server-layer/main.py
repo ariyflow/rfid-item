@@ -10,15 +10,18 @@ app = Flask(__name__)
 log = myLogger()
 db = dbObject(log)
 
+
 @app.route("/")
 def default_handler():
-    return make_response("ok", 200) 
+    return make_response("ok", 200)
 
-@app.route("/api/test", methods = ["GET", "POST"])
+
+@app.route("/api/test", methods=["GET", "POST"])
 def test_connect_handler():
     return make_response("ok", 200)
 
-@app.route("/api/submit_sensor_data", methods = ["POST"])
+
+@app.route("/api/submit_sensor_data", methods=["POST"])
 def submit_sensor_data_handler():
     data = request.get_json()
     # print(data)
@@ -30,7 +33,8 @@ def submit_sensor_data_handler():
 
     return make_response(jsonify(data), 200)
 
-@app.route("/api/remove_sensor_data", methods = ["POST"])
+
+@app.route("/api/remove_sensor_data", methods=["POST"])
 def remove_sensor_data_handler():
     data = request.get_json()
 
@@ -40,16 +44,21 @@ def remove_sensor_data_handler():
     data["rcv_time"] = str(time.time())
     return make_response(jsonify(data), 200 if data["rcv_status"] == "success" else 400)
 
-@app.route("/api/fetch_sensor_data", methods = ["POST"])
+
+@app.route("/api/fetch_sensor_data", methods=["POST"])
 def fetch_sensor_data_handler():
     data = request.get_json()
 
-    sensor_data_list = db.get_sensor_data(data.get("start"), data.get("num"))
+    device_seq = data.get("device_seq")
+    sensor_data_list = db.get_sensor_data(
+        data.get("start"), data.get("num"), device_seq
+    )
     log.debug(f"main.py 函数[fetch_sensor_data_handler]收到数据：{sensor_data_list}")
     if sensor_data_list:
         return make_response(jsonify(sensor_data_list), 200)
     else:
         return make_response(jsonify({}), 400)
+
 
 if __name__ == "__main__":
     log.info("程序开始运行")

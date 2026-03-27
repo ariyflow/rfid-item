@@ -5,10 +5,11 @@ import os
 数据库管理模块
 """
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # 项目根目录
-DATABASE_LOCATION = os.path.join(BASE_DIR, "database") # 数据保存的目录
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根目录
+DATABASE_LOCATION = os.path.join(BASE_DIR, "database")  # 数据保存的目录
 
-DATABASE_NAME = "data.db" # 数据保存到目录
+DATABASE_NAME = "data.db"  # 数据保存到目录
+
 
 class dbObject:
     def __init__(self, logger):
@@ -21,7 +22,7 @@ class dbObject:
         self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
         self.cur = self.conn.cursor()
 
-        self.cur.execute('''
+        self.cur.execute("""
             CREATE TABLE IF NOT EXISTS sensor_data(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_seq TEXT,
@@ -30,7 +31,7 @@ class dbObject:
                 hall INT,
                 timestamp TEXT
             )
-        ''')
+        """)
         self.conn.commit()
 
         self.cur.close()
@@ -43,17 +44,25 @@ class dbObject:
         Returns:
             status: 成功返回True,失败返回False
         """
-        if not data or not data.get('device_seq'):
+        if not data or not data.get("device_seq"):
             return False
         try:
             self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
             self.cur = self.conn.cursor()
 
-            self.cur.execute('''
+            self.cur.execute(
+                """
                 INSERT INTO sensor_data (device_seq, temperature, light, hall, timestamp)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (data.get('device_seq'), data.get('temperature'),
-                data.get('light'), data.get('hall'), data.get('timestamp')))
+            """,
+                (
+                    data.get("device_seq"),
+                    data.get("temperature"),
+                    data.get("light"),
+                    data.get("hall"),
+                    data.get("timestamp"),
+                ),
+            )
             self.conn.commit()
             self.par.debug(f"向数据库写入信息成功：{data}")
 
@@ -64,11 +73,12 @@ class dbObject:
             self.par.error(f"运行函数[insert_sensor_data]时发生错误：{e}")
         return False
 
-    def get_sensor_data(self, start: int, num: int):
+    def get_sensor_data(self, start: int, num: int, device_seq: str = None):
         """获取传感器数据
         Args:
             start: 起始位置（从 0 开始）
             num: 返回 n 条数据
+            device_seq: 可选，设备序列号筛选
         Returns:
             list: 传感器数据列表
         """
@@ -76,12 +86,27 @@ class dbObject:
             self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
             self.cur = self.conn.cursor()
 
-            self.cur.execute('''
-                SELECT id, device_seq, temperature, light, hall, timestamp
-                FROM sensor_data
-                ORDER BY id DESC
-                LIMIT ? OFFSET ?
-            ''', (num, start))
+            if device_seq:
+                self.cur.execute(
+                    """
+                    SELECT id, device_seq, temperature, light, hall, timestamp
+                    FROM sensor_data
+                    WHERE device_seq = ?
+                    ORDER BY id DESC
+                    LIMIT ? OFFSET ?
+                """,
+                    (device_seq, num, start),
+                )
+            else:
+                self.cur.execute(
+                    """
+                    SELECT id, device_seq, temperature, light, hall, timestamp
+                    FROM sensor_data
+                    ORDER BY id DESC
+                    LIMIT ? OFFSET ?
+                """,
+                    (num, start),
+                )
 
             tmp = self.cur.fetchall()
             self.par.info(f"获取数据库信息成功，信息条数：{len(tmp)}")
@@ -93,7 +118,7 @@ class dbObject:
             return tmp
         except Exception as e:
             self.par.error(f"运行函数[get_sensor_data]时发生错误：{e}")
-    
+
     def remove_sensor_data(self, id: int) -> dict:
         """删除传感器数据
         Args:
@@ -136,6 +161,7 @@ class dbObject:
         # except Exception as e:
         #     self.par.error(f"run [quit_handler] error: {e}")
         return
+
 
 if __name__ == "__main__":
     print(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
