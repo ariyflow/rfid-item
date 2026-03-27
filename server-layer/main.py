@@ -15,6 +15,9 @@ db = dbObject(log)
 def default_handler():
     return make_response(send_from_directory("./static/html", "index.html"), 200)
 
+@app.route("/dashboard.html")
+def dashboard_handler():
+    return make_response(send_from_directory("./static/html", "dashboard.html"), 200)
 
 @app.route("/api/test", methods=["GET", "POST"])
 def test_connect_handler():
