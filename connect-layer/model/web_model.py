@@ -15,14 +15,14 @@ class webModel(QWidget):
 
     
     def submit_sensor_data(self, device_seq: bytes, temp: float, light: int, hall: int):
-        url = "http://127.0.0.1:4343/api/submit-data"
+        url = "http://127.0.0.1:5353/api/submit_sensor_data"
 
         data = {
             "device_seq": device_seq,
             "temperature": temp,
             "light": light,
             "hall": hall,
-            "timestamp": time.time()
+            "timestamp": str(time.time())
         }
 
         requests.post(url, json = data)

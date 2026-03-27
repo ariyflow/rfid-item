@@ -33,6 +33,9 @@ class dbObject:
         ''')
         self.conn.commit()
 
+        self.cur.close()
+        self.conn.close()
+
     def insert_sensor_data(self, data: dict):
         """插入传感器数据
         Args:
@@ -43,13 +46,19 @@ class dbObject:
         if not data or not data.get('device_seq'):
             return False
         try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
             self.cur.execute('''
                 INSERT INTO sensor_data (device_seq, temperature, light, hall, timestamp)
                 VALUES (?, ?, ?, ?, ?)
             ''', (data.get('device_seq'), data.get('temperature'),
                 data.get('light'), data.get('hall'), data.get('timestamp')))
             self.conn.commit()
-            self.par.info(f"向数据库写入信息成功：{data}")
+            self.par.debug(f"向数据库写入信息成功：{data}")
+
+            self.cur.close()
+            self.conn.close()
             return True
         except Exception as e:
             self.par.error(f"运行函数[insert_sensor_data]时发生错误：{e}")
@@ -64,25 +73,69 @@ class dbObject:
             list: 传感器数据列表
         """
         try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
             self.cur.execute('''
                 SELECT id, device_seq, temperature, light, hall, timestamp
                 FROM sensor_data
                 ORDER BY id DESC
                 LIMIT ? OFFSET ?
             ''', (num, start))
-            self.par.info(f"获取数据库信息成功，信息条数：{num}")
-            return self.cur.fetchall()
+
+            tmp = self.cur.fetchall()
+            self.par.info(f"获取数据库信息成功，信息条数：{len(tmp)}")
+            self.par.debug(f"获取到数据：{tmp}")
+
+            self.cur.close()
+            self.conn.close()
+
+            return tmp
         except Exception as e:
             self.par.error(f"运行函数[get_sensor_data]时发生错误：{e}")
+    
+    def remove_sensor_data(self, id: int) -> dict:
+        """删除传感器数据
+        Args:
+            id: 要删除的数据ID
+        Returns:
+            dict: 包含删除状态的字典
+                - status: "success" | "not_found" | "error"
+                - message: 状态描述
+        """
+        if id is None or not isinstance(id, int) or id <= 0:
+            return {"status": "error", "message": "无效的ID"}
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+            # 先查询该ID是否存在
+            self.cur.execute("SELECT id FROM sensor_data WHERE id = ?", (id,))
+            result = self.cur.fetchone()
+            if result is None:
+                self.cur.close()
+                self.conn.close()
+                return {"status": "not_found", "message": f"ID为{id}的数据不存在"}
+            # 执行删除
+            self.cur.execute("DELETE FROM sensor_data WHERE id = ?", (id,))
+            self.conn.commit()
+            self.par.debug(f"删除ID为 {id} 的传感器数据成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "删除成功"}
+        except Exception as e:
+            self.par.error(f"运行函数[remove_sensor_data]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
 
     def quit_handler(self):
         """数据库退出"""
-        try:
-            if self.conn and self.cur:
-                self.cur.close()
-                self.conn.close()
-        except Exception as e:
-            self.par.error(f"run [quit_handler] error: {e}")
+        # try:
+        #     if self.conn and self.cur:
+        #         self.cur.close()
+        #         self.conn.close()
+        # except Exception as e:
+        #     self.par.error(f"run [quit_handler] error: {e}")
+        return
 
 if __name__ == "__main__":
     print(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
