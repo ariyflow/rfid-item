@@ -1,4 +1,4 @@
-from flask import Flask, make_response, request, jsonify
+from flask import Flask, make_response, request, jsonify, send_from_directory
 import time
 import json
 from model.dbObject import dbObject
@@ -13,7 +13,7 @@ db = dbObject(log)
 
 @app.route("/")
 def default_handler():
-    return make_response("ok", 200)
+    return make_response(send_from_directory("./static/html", "index.html"), 200)
 
 
 @app.route("/api/test", methods=["GET", "POST"])

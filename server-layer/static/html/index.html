@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+
+    <div class="data-container">
+
+    </div>
+
+    <button class="update_btn">更新数据</button>
+
+    <script>
+        // document.getElementsByClassName("main-container")[0].addEventListener(function(e){
+        //     console.log(e);            
+        // });
+        
+        async function fetch_sensor_data(fetch_num) {
+            try {
+                const response = await fetch('/api/fetch_sensor_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ start: 0, num: fetch_num})
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    data.sort((a,b)=> a.id - b.id);
+                    // console.log('最新5条传感器数据:', data);
+                    return data;
+                } else {
+                    console.log('函数[fetch_sensor_data] 获取数据失败');
+                }
+            } catch (error) {
+                console.error('获取传感器数据失败:', error);
+            }
+            return null;
+        }
+
+        async function update_sensor_data(){
+            
+            const dataContainer = document.getElementsByClassName("data-container")[0];
+            
+            // 获取20条数据
+            const data = await fetch_sensor_data(20);
+            
+            if (data && data.length > 0) {
+                // 创建表格
+                let html = '<table border="1" style="border-collapse: collapse;" class="show_data_table"';
+                
+                // 表头
+                html += '<tr>';
+                html += '<th>ID</th>';
+                html += '<th>设备序列号</th>';
+                html += '<th>温度</th>';
+                html += '<th>光照</th>';
+                html += '<th>霍尔</th>';
+                html += '<th>时间戳</th>';
+                html += '</tr>';
+                
+                // 数据行
+                data.forEach(item => {
+                    html += '<tr>';
+                    html += `<td>${item.id}</td>`;
+                    html += `<td>${item.device_seq}</td>`;
+                    html += `<td>${item.temperature}</td>`;
+                    html += `<td>${item.light}</td>`;
+                    html += `<td>${item.hall}</td>`;
+                    html += `<td>${item.timestamp}</td>`;
+                    html += '</tr>';
+                });
+                
+                html += '</table>';
+                dataContainer.innerHTML = html;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async function(){
+            console.log("hello.");
+            update_sensor_data();
+            // setInterval(fetch_sensor_data, 1000);
+        });
+
+        document.getElementsByClassName("update_btn")[0].addEventListener("click", function(){
+            update_sensor_data();
+        });
+    </script>
+</body>
+</html>

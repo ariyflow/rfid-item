@@ -115,7 +115,9 @@ class dbObject:
             self.cur.close()
             self.conn.close()
 
-            return tmp
+            columns = [desc[0] for desc in self.cur.description]
+            return [dict(zip(columns, row)) for row in tmp]
+        
         except Exception as e:
             self.par.error(f"运行函数[get_sensor_data]时发生错误：{e}")
 
