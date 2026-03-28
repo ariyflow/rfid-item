@@ -36,6 +36,10 @@ from model.web_model import webModel
 import os
 
 # 常量定义
+
+BASE_URL = "http://127.0.0.1:5353" # 服务器的url
+TOKEN = "" # 向服务器发送数据所需的token
+
 # 安全常量
 MAX_LOG_HISTORY = 10000  # 最大日志历史条数
 MAX_DISPLAY_BYTES = 1048576  # 单次最大显示字节数 (1MB)
@@ -77,6 +81,11 @@ class SerialToolWindow(QMainWindow):
 
         self.par = par
         self.par.aboutToQuit.connect(self.quit_handler)
+
+        # 全局变量声明
+        self.device_seq = b"" # 连接串口后，获取的设备序列号
+        self.token = TOKEN
+        self.base_url = BASE_URL
         
         # 模块声明
         self.serialt = serialThread(self)
@@ -84,11 +93,11 @@ class SerialToolWindow(QMainWindow):
         self.serialt.start()
 
         self.web = webModel(self)
-
-        # 全局变量声明
-        self.device_seq = b"" # 连接串口后，获取的设备序列号
     
     def quit_handler(self):
+        if hasattr(self, "web"):
+            self.web.quit_web_session()
+
         if self.serialt.is_running:
             if self.serialt.serial and self.serialt.serial.is_open:
                 self.serialt.close_serial()
@@ -166,11 +175,6 @@ class SerialToolWindow(QMainWindow):
         # self.labelStats: QLabel = ui_window.findChild(QLabel, "labelStats") # type: ignore
         # self.frameStatus: QFrame = ui_window.findChild(QFrame, "frameStatus") # type: ignore
 
-        self.lineEditServerUrl: QLineEdit = ui_window.findChild(QLineEdit, "lineEditServerUrl") # type: ignore
-        self.lineEditApiToken: QLineEdit = ui_window.findChild(QLineEdit, "lineEditApiToken") # type: ignore
-        self.lineEditDeviceSeq: QLineEdit = ui_window.findChild(QLineEdit, "lineEditDeviceSeq") # type: ignore
-        self.btnServerConnect: QPushButton = ui_window.findChild(QPushButton, "btnServerConnect") # type: ignore
-
         """感知层通信组件"""
         # RFID操作
         self.get_uid_btn: QPushButton = ui_window.findChild(QPushButton, "get_uid_btn") # type: ignore
@@ -185,9 +189,16 @@ class SerialToolWindow(QMainWindow):
         # 从机操作
         self.stcope_input_edit: QLineEdit = ui_window.findChild(QLineEdit, "stcope_input_edit") # type:ignore
         self.stcope_setseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_setseq_btn") # type: ignore
+        self.stcope_getseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_getseq_btn") # type: ignore
         
         # 输出区
         self.output_data_text: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "output_data_text") # type: ignore
+
+        
+        """上层通信"""
+        self.lineEditServerUrl: QLineEdit = ui_window.findChild(QLineEdit, "lineEditServerUrl") # type: ignore | 服务器地址
+        self.lineEditApiToken: QLineEdit = ui_window.findChild(QLineEdit, "lineEditApiToken") # type: ignore | api token
+        self.textUpperLayerLog: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "textUpperLayerLog") # type: ignore | 上层日志
 
         # print(
         #     self.stcope_setseq_btn,
@@ -206,9 +217,8 @@ class SerialToolWindow(QMainWindow):
         # 刷新串口列表
         self._refresh_ports()
 
-        self.lineEditServerUrl.setText("http://127.0.0.1:4343")
-        self.lineEditApiToken.setText("")
-        self.lineEditDeviceSeq.setText("DEVICE_TEST")
+        self.lineEditServerUrl.setText(BASE_URL)
+        self.lineEditApiToken.setText(TOKEN)
         
 
 
@@ -223,16 +233,16 @@ class SerialToolWindow(QMainWindow):
         # Enter 键发送
         self.lineEditSend.returnPressed.connect(self._send_data)
 
-        self.btnServerConnect.clicked.connect(self._btnServerConnectHandler)
-
-
-        # 感知层通信按键
+        """感知层通信按键"""
+        # RFID
         self.get_uid_btn.clicked.connect(self._get_uid_handler)
         self.read_data_btn.clicked.connect(self._read_data_handler)
         self.write_data_btn.clicked.connect(self._write_data_handler)
         self.fetch_sensor_btn.clicked.connect(self._fetch_sensor_handler)
         
+        # 从机
         self.stcope_setseq_btn.clicked.connect(self._setseq_handler)
+        self.stcope_getseq_btn.clicked.connect(self._send_fetch_device_seq_handler)
 
     def _get_uid_handler(self):
         """获取RFID的uid"""
@@ -334,21 +344,28 @@ class SerialToolWindow(QMainWindow):
             self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
     def _send_fetch_device_seq_handler(self):
-        """发送获取设备序列号的数据帧
+        """
+        发送获取设备序列号的数据帧
         该函数要求在串口打开后调用
 
         """
         tmp = b"\xaa\x55\x05"+b"\x00"*20
         tmp = tmp+self._get_check_sum(tmp)
         self.serialt.send_data(tmp)
+        self.log.debug(f"运行函数：[_send_fetch_device_seq_handler]尝试获取从机序列号")
 
-    # def submit_sensor_data_handler(self):
-    #     """向应用层发送传感器数据，包含设备序列号和时间戳
-    #     """
-    #     self.web.submit_sensor_data(self.device_seq, 25.0, 123, 1)
-
-    def _btnServerConnectHandler(self):
-        self.log.debug("send server connect handler.")
+    def submit_sensor_data_handler(self, data: dict):
+        """
+        向应用层发送传感器数据，包含设备序列号和时间戳
+        Args:
+            data: 传入的传感器数据，需要包含temperature, light, hall
+        """
+        
+        if any(data.get(k) is None for k in ("temperature", "light", "hall")):
+            self.log.error(f"函数[submit_sensor_data_handler]运行错误：参数不全。传入参数：{data}")
+            return
+        
+        self.web.submit_sensor_data(self.device_seq, data.get("temperature"), data.get("light"), data.get("hall")) # type: ignore
     
     # 日志输出方法
     def _append_log(self, timestamp: str, level: str, message: str):
@@ -480,6 +497,7 @@ class SerialToolWindow(QMainWindow):
         if self.serialt.serial.is_open:
             self._on_connection_changed(True)
             self._send_fetch_device_seq_handler()
+            
     
     def _disconnect(self):
         """断开串口连接"""
@@ -642,13 +660,19 @@ class SerialToolWindow(QMainWindow):
                 light = int.from_bytes(data[6:8], byteorder="big")
                 hall = data[8]
                 shake = data[9]
+                self.submit_sensor_data_handler({
+                    "temperature": temperture,
+                    "light": light,
+                    "hall": hall
+                })
                 self.output_data_text.appendPlainText(f"fetch sensor data(temperatute, light, hall, shake):[{temperture}, {light}, {hall}, {shake}]") # type: ignore
             elif command == 0x04: # 返回写入序列号的结果
                 self.log.info(f"收到写入序列号后返回的数据帧：{self._show_btyes_with_space(data)}")
                 self.output_data_text.appendPlainText(f"set seq success: {self._show_btyes_with_space(data[4:10])}")
             elif command == 0x05: # 获取从机序列号
-                self.device_seq = int.from_bytes(data[4:-1], byteorder="big")
-                self.log.info(f"获取到连接从机的序列号：{self.device_seq}")
+                self.device_seq = data[4:-1]
+                self.output_data_text.appendPlainText(f"update device sequence: {self._show_btyes_with_space(self.device_seq)}")
+                self.log.info(f"获取到连接从机的序列号：{self.device_seq.hex()}")
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")

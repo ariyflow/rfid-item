@@ -1,4 +1,4 @@
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 1   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
@@ -62,7 +62,7 @@ line level    source
   52   2        }
   53   1        return tmp;
   54   1      }
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 2   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 2   
 
   55          
   56          // 获取当前RFID的序列号，保存到参数_id中
@@ -126,7 +126,7 @@ line level    source
  113   1        while(1){
  114   2          if(PcdRequest(0x52, _uid) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
  115   2      
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 3   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 3   
 
  116   2          if(PcdAnticoll(_uid) == 0)tmp |= (1<<1); // 防冲突，返回uid
  117   2      
@@ -190,7 +190,7 @@ line level    source
  175   2          if(is_stream_led){
  176   3            setLed(led_vector);
  177   3            setSeg(uid[0]>>4,uid[0]&0x0f, uid[1]>>4,uid[1]&0x0f, uid[2]>>4,uid[2]&0x0f, uid[3]>>4,uid[3]&0x0f);
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 4   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 4   
 
  178   3            led_vector = (led_vector<<1)+(led_vector>>7);
  179   3          }
@@ -254,7 +254,7 @@ line level    source
  237   1        xdata unsigned char key;
  238   1      
  239   1        if(mode == 0){ // MODE0 待机模式
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 5   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 5   
 
  240   2          
  241   2          key = getADCKeyAct(enumADCKey3);
@@ -318,7 +318,7 @@ line level    source
  299   1        // }
  300   1        
  301   1      }
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 6   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 6   
 
  302          
  303          void myUartCallback(){
@@ -382,7 +382,7 @@ line level    source
  361   2          send_buf[8]=card_data[3];
  362   2          send_buf[9]=card_data[4];
  363   2          send_buf[10]=card_data[5];
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 7   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 7   
 
  364   2          send_buf[11]=card_data[6];
  365   2          send_buf[12]=card_data[7];
@@ -446,7 +446,7 @@ line level    source
  422   2          成功时返回：
  423   2            aa 55 08 04 receive_buf[3:9] chk_sum
  424   2          失败时返回：(其实失败了也检查不出来，所以不会返回失败的数据帧，写入失�
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 8   
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 8   
 
              -��应该会返回一个无效帧，可以在log中查看)
  425   2            aa 55 03 04 00 chk_sum
@@ -472,94 +472,113 @@ line level    source
  445   2      
  446   2          uart1Send(send_buf, 11);
  447   2        }
- 448   1        else{
- 449   2      
- 450   2        }
- 451   1      }
- 452          
- 453          //void main(){
- 454          //  
- 455          //  sysInit();
- 456          //  disInit();
- 457          
- 458          //  uart1Init(9600);
- 459          //  send_buf[0] = 0xaa;
- 460          //  send_buf[1] = 0x55;
- 461          //  setUart1Buf(receive_buf, 24, send_buf, 2);
- 462          //  adcInit();
- 463          //  rc522Init();
- 464          
- 465          //  setSeg(0,0,0,0,0,0,0,0);
- 466          //  
- 467          //  setCallback(enumEventInt100, my100msCallback);
- 468          //  setCallback(enumEventKey, myKeyCallback);
- 469          //  setCallback(enumEventAdcKey, myADCKeyCallback);
- 470          //  setCallback(enumEventUart1, myUartCallback);
+ 448   1        else if(command == 0x05){
+ 449   2          /*
+ 450   2          05 - 获取从机序列号，从AT24C02获取序列号并返回。
+ 451   2          */
+ 452   2          send_buf[2] = 0x08;
+ 453   2          send_buf[3] = 0x05;
+ 454   2          send_buf[4] = rAT(0x50);
+ 455   2          send_buf[5] = rAT(0x51);
+ 456   2          send_buf[6] = rAT(0x52);
+ 457   2          send_buf[7] = rAT(0x53);
+ 458   2          send_buf[8] = rAT(0x54);
+ 459   2          send_buf[9] = rAT(0x55);
+ 460   2          send_buf[10] = set_checksum(send_buf, 10);
+ 461   2      
+ 462   2          uart1Send(send_buf, 11);
+ 463   2      
+ 464   2        }
+ 465   1        else{
+ 466   2      
+ 467   2        }
+ 468   1      }
+ 469          
+ 470          //void main(){
  471          //  
- 472          //  setLed(0x15);
- 473          //  
- 474          //  while(1){
- 475          //    sysRun();
- 476          //  }
- 477          //}
- 478          
- 479          void delay_ms(unsigned int xms)   //@11.0592MHz
- 480          {
- 481   1        unsigned char i, j;
- 482   1          while(xms--){
- 483   2              _nop_();
- 484   2              _nop_();
- 485   2              _nop_();
-C51 COMPILER V9.54   MAIN                                                                  03/23/2026 23:29:02 PAGE 9   
+ 472          //  sysInit();
+ 473          //  disInit();
+ 474          
+ 475          //  uart1Init(9600);
+ 476          //  send_buf[0] = 0xaa;
+ 477          //  send_buf[1] = 0x55;
+ 478          //  setUart1Buf(receive_buf, 24, send_buf, 2);
+ 479          //  adcInit();
+ 480          //  rc522Init();
+ 481          
+ 482          //  setSeg(0,0,0,0,0,0,0,0);
+ 483          //  
+ 484          //  setCallback(enumEventInt100, my100msCallback);
+ 485          //  setCallback(enumEventKey, myKeyCallback);
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 9   
 
- 486   2              i = 11;
- 487   2              j = 190;
- 488   2              do
- 489   2              {
- 490   3                  while (--j);
- 491   3              } while (--i);
- 492   2          }
- 493   1      }
- 494          
- 495          void main() {
- 496   1        unsigned char ver;
- 497   1        
- 498   1        sysInit();
- 499   1        disInit();
- 500   1        ATInit();
- 501   1          uart1Init(9600);
- 502   1        
- 503   1        setUart1Buf(receive_buf, 24, send_buf, 2);
- 504   1        
- 505   1        // adc初始化时，当时将p1.0和p1.1设置为了ADC引脚，导致这里错误
- 506   1        // 现已解决
- 507   1        adcInit(); // 暂时不能开adc的中断
- 508   1        
- 509   1        setCallback(enumEventInt100, my100msCallback);
- 510   1        setCallback(enumEventKey, myKeyCallback);
- 511   1        setCallback(enumEventAdcKey, myADCKeyCallback);
- 512   1        setCallback(enumEventUart1, myUartCallback);
- 513   1        setCallback(enumEventInt1000, my1SCallback);
- 514   1        send_buf[0] = 0xaa;
- 515   1        send_buf[1] = 0x55;
- 516   1        
- 517   1        setLed(0x15);
- 518   1        setSeg(0,1,2,3,4,5,6,7);
- 519   1      
- 520   1        rc522Init();
- 521   1        // delay_ms(1000);
- 522   1          
- 523   1        while(1) {
- 524   2            // ver = ReadRawRC(VersionReg);
- 525   2            // uart1Send(&ver, 1);
- 526   2            sysRun();
- 527   2          }
- 528   1      }
-*** WARNING C280 IN LINE 496 OF main.c: 'ver': unreferenced local variable
+ 486          //  setCallback(enumEventAdcKey, myADCKeyCallback);
+ 487          //  setCallback(enumEventUart1, myUartCallback);
+ 488          //  
+ 489          //  setLed(0x15);
+ 490          //  
+ 491          //  while(1){
+ 492          //    sysRun();
+ 493          //  }
+ 494          //}
+ 495          
+ 496          void delay_ms(unsigned int xms)   //@11.0592MHz
+ 497          {
+ 498   1        unsigned char i, j;
+ 499   1          while(xms--){
+ 500   2              _nop_();
+ 501   2              _nop_();
+ 502   2              _nop_();
+ 503   2              i = 11;
+ 504   2              j = 190;
+ 505   2              do
+ 506   2              {
+ 507   3                  while (--j);
+ 508   3              } while (--i);
+ 509   2          }
+ 510   1      }
+ 511          
+ 512          void main() {
+ 513   1        unsigned char ver;
+ 514   1        
+ 515   1        sysInit();
+ 516   1        disInit();
+ 517   1        ATInit();
+ 518   1          uart1Init(9600);
+ 519   1        
+ 520   1        setUart1Buf(receive_buf, 24, send_buf, 2);
+ 521   1        
+ 522   1        // adc初始化时，当时将p1.0和p1.1设置为了ADC引脚，导致这里错误
+ 523   1        // 现已解决
+ 524   1        adcInit(); // 暂时不能开adc的中断
+ 525   1        
+ 526   1        setCallback(enumEventInt100, my100msCallback);
+ 527   1        setCallback(enumEventKey, myKeyCallback);
+ 528   1        setCallback(enumEventAdcKey, myADCKeyCallback);
+ 529   1        setCallback(enumEventUart1, myUartCallback);
+ 530   1        setCallback(enumEventInt1000, my1SCallback);
+ 531   1        send_buf[0] = 0xaa;
+ 532   1        send_buf[1] = 0x55;
+ 533   1        
+ 534   1        setLed(0x15);
+ 535   1        setSeg(0,1,2,3,4,5,6,7);
+ 536   1      
+ 537   1        rc522Init();
+ 538   1        // delay_ms(1000);
+ 539   1          
+ 540   1        while(1) {
+ 541   2            // ver = ReadRawRC(VersionReg);
+ 542   2            // uart1Send(&ver, 1);
+ 543   2            sysRun();
+ 544   2          }
+ 545   1      }
+*** WARNING C280 IN LINE 513 OF main.c: 'ver': unreferenced local variable
+
+C51 COMPILER V9.54   MAIN                                                                  03/28/2026 14:09:39 PAGE 10  
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   2040    ----
+   CODE SIZE        =   2125    ----
    CONSTANT SIZE    =     16    ----
    XDATA SIZE       =     91      18
    PDATA SIZE       =   ----    ----

@@ -445,6 +445,23 @@ void myUartCallback(){
 
 		uart1Send(send_buf, 11);
 	}
+	else if(command == 0x05){
+		/*
+		05 - 获取从机序列号，从AT24C02获取序列号并返回。
+		*/
+		send_buf[2] = 0x08;
+		send_buf[3] = 0x05;
+		send_buf[4] = rAT(0x50);
+		send_buf[5] = rAT(0x51);
+		send_buf[6] = rAT(0x52);
+		send_buf[7] = rAT(0x53);
+		send_buf[8] = rAT(0x54);
+		send_buf[9] = rAT(0x55);
+		send_buf[10] = set_checksum(send_buf, 10);
+
+		uart1Send(send_buf, 11);
+
+	}
 	else{
 
 	}

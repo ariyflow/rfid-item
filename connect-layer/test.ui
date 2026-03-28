@@ -39,7 +39,7 @@
     <item>
      <widget class="QTabWidget" name="tabMain">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tabSerial">
        <attribute name="title">
@@ -458,6 +458,13 @@
                   </widget>
                  </item>
                  <item>
+                  <widget class="QPushButton" name="stcope_getseq_btn">
+                   <property name="text">
+                    <string>获取序列号</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <spacer name="verticalSpacer_2">
                    <property name="orientation">
                     <enum>Qt::Orientation::Vertical</enum>
@@ -525,262 +532,51 @@
           <property name="title">
            <string>服务器配置</string>
           </property>
-          <layout class="QGridLayout" name="gridLayoutServer">
-           <property name="horizontalSpacing">
-            <number>15</number>
-           </property>
-           <property name="verticalSpacing">
-            <number>10</number>
-           </property>
-           <item row="0" column="0">
-            <widget class="QLabel" name="labelServerUrl">
-             <property name="text">
-              <string>服务器地址:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLineEdit" name="lineEditServerUrl">
-             <property name="minimumSize">
-              <size>
-               <width>300</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="placeholderText">
-              <string>http://localhost:4343</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="labelApiKey">
-             <property name="text">
-              <string>API Token:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QLineEdit" name="lineEditApiToken">
-             <property name="minimumSize">
-              <size>
-               <width>300</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="echoMode">
-              <enum>QLineEdit::EchoMode::Password</enum>
-             </property>
-             <property name="placeholderText">
-              <string>登录后获取的 Token</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="labelDeviceSeq">
-             <property name="text">
-              <string>设备序列号:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLineEdit" name="lineEditDeviceSeq">
-             <property name="minimumSize">
-              <size>
-               <width>200</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="placeholderText">
-              <string>设备唯一标识</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="1">
-            <layout class="QHBoxLayout" name="horizontalLayoutServerBtns">
-             <item>
-              <widget class="QPushButton" name="btnServerConnect">
-               <property name="minimumSize">
-                <size>
-                 <width>100</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>连接</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btnServerDisconnect">
-               <property name="minimumSize">
-                <size>
-                 <width>100</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>断开</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QGroupBox" name="groupBoxSensorData">
-          <property name="title">
-           <string>传感器数据提交</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayoutSensorSubmit">
+          <layout class="QVBoxLayout" name="verticalLayout_8">
            <item>
-            <layout class="QGridLayout" name="gridLayoutSensorData">
+            <layout class="QFormLayout" name="formLayout">
              <item row="0" column="0">
-              <widget class="QLabel" name="labelTemperature">
+              <widget class="QLabel" name="labelServerUrl">
                <property name="text">
-                <string>温度 (°C):</string>
+                <string>服务器地址:</string>
                </property>
               </widget>
              </item>
              <item row="0" column="1">
-              <widget class="QDoubleSpinBox" name="spinTemperature">
+              <widget class="QLineEdit" name="lineEditServerUrl">
                <property name="minimumSize">
                 <size>
-                 <width>150</width>
+                 <width>300</width>
                  <height>0</height>
                 </size>
                </property>
-               <property name="minimum">
-                <double>-50.000000000000000</double>
-               </property>
-               <property name="maximum">
-                <double>150.000000000000000</double>
-               </property>
-               <property name="value">
-                <double>25.000000000000000</double>
+               <property name="placeholderText">
+                <string>http://localhost:4343</string>
                </property>
               </widget>
              </item>
              <item row="1" column="0">
-              <widget class="QLabel" name="labelLight">
+              <widget class="QLabel" name="labelApiKey">
                <property name="text">
-                <string>光照:</string>
+                <string>API Token:</string>
                </property>
               </widget>
              </item>
              <item row="1" column="1">
-              <widget class="QSpinBox" name="spinLight">
+              <widget class="QLineEdit" name="lineEditApiToken">
                <property name="minimumSize">
                 <size>
-                 <width>150</width>
+                 <width>300</width>
                  <height>0</height>
                 </size>
                </property>
-               <property name="maximum">
-                <number>100000</number>
+               <property name="echoMode">
+                <enum>QLineEdit::EchoMode::Password</enum>
+               </property>
+               <property name="placeholderText">
+                <string>登录后获取的 Token</string>
                </property>
               </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="labelHall">
-               <property name="text">
-                <string>霍尔传感器:</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QComboBox" name="comboHall">
-               <property name="minimumSize">
-                <size>
-                 <width>150</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <item>
-                <property name="text">
-                 <string>0 (无磁场)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>1 (有磁场)</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="labelShake">
-               <property name="text">
-                <string>振动传感器:</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="1">
-              <widget class="QComboBox" name="comboShake">
-               <property name="minimumSize">
-                <size>
-                 <width>150</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <item>
-                <property name="text">
-                 <string>0 (无振动)</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>1 (有振动)</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayoutSubmitBtn">
-             <item>
-              <spacer name="horizontalSpacerSubmit">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btnSubmitSensorData">
-               <property name="minimumSize">
-                <size>
-                 <width>150</width>
-                 <height>40</height>
-                </size>
-               </property>
-               <property name="styleSheet">
-                <string notr="true">QPushButton { font-weight: bold; background-color: #2d8cf0; color: white; border-radius: 4px; padding: 8px; }</string>
-               </property>
-               <property name="text">
-                <string>提交传感器数据</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacerSubmitRight">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
              </item>
             </layout>
            </item>
