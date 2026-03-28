@@ -586,7 +586,7 @@
         <item>
          <widget class="QGroupBox" name="groupBoxUpperLayerLog">
           <property name="title">
-           <string>通信日志</string>
+           <string>通信信息</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayoutUpperLayerLog">
            <item>
