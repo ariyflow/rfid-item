@@ -305,9 +305,12 @@ void myUartCallback(){
 	xdata unsigned char command = 0xff; // 指令字节
 	xdata unsigned char write_addr = 0x00; // 要写入数据的地址
 	
-	// 回显
-	// uart1Send(receive_buf, 24);
-	// return;
+	// mode0下回显所有信息
+	if (mode == 0){
+		uart1Send(receive_buf, 24);
+		return;
+	}
+
 
 	// 收到数据后，首先进行偶校验判断
 	if(receive_buf[23] != set_checksum(receive_buf, 23)) return;
