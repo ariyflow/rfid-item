@@ -454,7 +454,7 @@ class SerialToolWindow(QMainWindow):
         self.comboPort.clear()
         
         ports = serial.tools.list_ports.comports()
-        
+        ports = [p for p in ports if "USB" in p.hwid]
         for port in sorted(ports, key=lambda p: p.device):
             # 安全：清理端口描述中的特殊字符
             safe_desc = html.escape(str(port.description))
