@@ -31,3 +31,6 @@ class myLogger(logging.Logger):
 
         # 添加 handler 到当前 logger
         self.addHandler(handler)
+
+
+log = myLogger() # 操作日志的log

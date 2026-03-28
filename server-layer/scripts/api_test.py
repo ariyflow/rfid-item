@@ -42,7 +42,7 @@ import time
 
 """remove_sensor_data测试"""
 
-data = {"id": 1}
-resp = requests.post("http://127.0.0.1:5353/api/remove_sensor_data", json=data)
-print(resp.text)
-resp.close()
+# data = {"id": 1}
+# resp = requests.post("http://127.0.0.1:5353/api/remove_sensor_data", json=data)
+# print(resp.text)
+# resp.close()

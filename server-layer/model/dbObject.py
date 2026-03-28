@@ -1,5 +1,6 @@
 import sqlite3 as sl
 import os
+from model.logger import log
 
 """
 数据库管理模块
@@ -164,6 +165,8 @@ class dbObject:
         #     self.par.error(f"run [quit_handler] error: {e}")
         return
 
+
+db = dbObject(log)
 
 if __name__ == "__main__":
     print(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
