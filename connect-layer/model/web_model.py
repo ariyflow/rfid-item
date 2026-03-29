@@ -1,66 +1,88 @@
 from typing import Optional
 import time
-
+from queue import Queue
 import requests
 from PySide6.QtCore import QObject, QThread, Signal, Slot
+from threading import Event
 
+QUEUE_MAXSIZE = 50 # 请求队列的最大长度
+REQUESTS_TIMEOUT = 5 # 请求等待的最长时间
+QUEUE_TIMEOUT = 1.0 # 请求队列每次轮询等待的时间
 
-class _WebWorker(QObject):
-    request_finished = Signal(str)
-    request_failed = Signal(str)
-
-    def __init__(self):
+class webThread(QThread):
+    resp_signal = Signal(dict) # 收到某个请求响应的信号
+    def __init__(self, par):
         super().__init__()
-        self.session: Optional[requests.Session] = None
 
-    @Slot(dict)
-    def submit_sensor_data(self, task: dict):
+        self.par = par # par为webModel
+
+        self._is_running = Event()
+        self._is_running.set()
+
+        self.session = requests.Session()
+        self.requests_queue: Queue = Queue(maxsize=QUEUE_MAXSIZE)
+    
+    def run(self):
+        while self._is_running.is_set():
+            try:
+                url, method, data = self.requests_queue.get(timeout=QUEUE_TIMEOUT)
+                self._do_requests(url, method, data)
+            except:
+                continue
+
+    def _do_requests(self, url: str, method: str, data: dict | None):
+        """执行请求的函数"""
+        method = method.upper()
         try:
-            if self.session is None:
-                self.session = requests.Session()
+            if method == "GET":
+                resp = self.session.get(url, timeout=REQUESTS_TIMEOUT)
+                data = {
+                    "status": resp.status_code,
+                    "url": resp.url,
+                    "resp": resp.text
+                }
+                self.resp_signal.emit(data)
+                
+            elif method == "POST":
+                resp = self.session.post(url, json=data, timeout=REQUESTS_TIMEOUT)
+                data = {
+                    "status": resp.status_code,
+                    "url": resp.url,
+                    "resp": resp.text
+                }
+                self.resp_signal.emit(data)
 
-            url = task.get("url")
-            data = task.get("data")
-            if not isinstance(url, str) or not isinstance(data, dict):
-                self.request_failed.emit("submit_sensor_data task format error")
-                return
-
-            resp = self.session.post(url, json=data, timeout=5)
-            msg = f"[{resp.status_code}] {resp.text}"
-            resp.close()
-            self.request_finished.emit(msg)
-        except requests.RequestException as e:
-            self.request_failed.emit(f"request exception: {e}")
         except Exception as e:
-            self.request_failed.emit(f"unexpected exception: {e}")
+            self.par.par.log.error(f"运行函数[_do_requests]错误：{e}")
 
-    @Slot()
-    def close_session(self):
+    def add_request(self, url: str, method: str, data: dict):
+        if not self.requests_queue.full():
+            self.requests_queue.put((url, method, data))
+        else:
+            self.par.par.log.warning(f"运行函数[add_request]错误：请求队列已满，新增请求失败：{(url, method, data)}")
+    
+    def quit_handler(self):
         if self.session is not None:
             self.session.close()
             self.session = None
 
+        if self._is_running.is_set():
+            self._is_running.clear()
+            self.quit()
+            self.wait()
+
 
 class webModel(QObject):
-    submit_sensor_data_signal = Signal(dict)
-    close_session_signal = Signal()
-
+    
     def __init__(self, par):
-        super().__init__(par)
-        self.par = par
+        super().__init__()
+        self.par = par # par需要为SerialToolWindow
 
-        self.worker_thread = QThread(self)
-        self.worker = _WebWorker()
-        self.worker.moveToThread(self.worker_thread)
+        self.webt = webThread(self)
+        self.webt.start()
 
-        self.submit_sensor_data_signal.connect(self.worker.submit_sensor_data)
-        self.close_session_signal.connect(self.worker.close_session)
-        self.worker.request_finished.connect(self._on_submit_success)
-        self.worker.request_failed.connect(self._on_submit_failed)
-        self.worker_thread.finished.connect(self.worker.deleteLater)
-
-        self.worker_thread.start()
-
+        self.webt.resp_signal.connect(self.resp_parse)
+    
     def submit_sensor_data(self, device_seq: bytes, temp: float, light: int, hall: int):
         """提交传感器数据"""
         url = f"{self.par.base_url}/api/submit_sensor_data"
@@ -73,24 +95,11 @@ class webModel(QObject):
             "timestamp": str(time.time()),
         }
 
-        self.submit_sensor_data_signal.emit({"url": url, "data": data})
+        self.webt.add_request(url, "POST", data)
 
-    @Slot(str)
-    def _on_submit_success(self, msg: str):
-        self.par.log.info(f"函数[submit_sensor_data]收到应用层响应：{msg}")
-        self.par.textUpperLayerLog.appendPlainText(msg + "\n")
-
-    @Slot(str)
-    def _on_submit_failed(self, msg: str):
-        self.par.log.error(f"函数[submit_sensor_data]请求失败：{msg}")
-        self.par.textUpperLayerLog.appendPlainText(f"[ERROR] {msg}\n")
+    def resp_parse(self, data: dict):
+        """发送的请求得到响应后做处理"""
+        self.par.log.debug(f"获取到应用层响应：{data}")
 
     def quit_web_session(self):
-        """关闭 web 会话和工作线程"""
-        self.close_session_signal.emit()
-        self.worker_thread.quit()
-        self.worker_thread.wait(2000)
-
-
-if __name__ == "__main__":
-    pass
+        self.webt.quit_handler()
