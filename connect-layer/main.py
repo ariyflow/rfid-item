@@ -1,17 +1,3 @@
-"""
-RFID Connect Layer - 串口调试工具
-基于 PySide6 的串口通信工具，支持日志输出和扩展
-
-文件结构:
-    - main.py: 主程序
-    - test.ui: Qt Designer UI 文件
-
-运行方式:
-    cd ~/code/rfid-item/connect-layer
-    source .venv/bin/activate
-    python main.py
-"""
-
 import sys
 import os
 import serial
@@ -729,7 +715,6 @@ class SerialToolWindow(QMainWindow):
 
 # 主程序入口
 def main():
-
 
     """主函数"""
     app = QApplication(sys.argv)
