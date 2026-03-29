@@ -180,6 +180,26 @@ class dbObject:
         except Exception as e:
             self.par.error(f"运行函数[remove_sensor_data]时发生错误：{e}")
             return {"status": "error", "message": str(e)}
+        
+    def get_device_list(self):
+        """获取所有设备序列号列表
+        Returns:
+            list: 设备序列号列表
+        """
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+            
+            self.cur.execute("SELECT device_seq FROM devices ORDER BY id DESC")
+            device_list = self.cur.fetchall()
+            
+            self.cur.close()
+            self.conn.close()
+            
+            return [row[0] for row in device_list]
+        except Exception as e:
+            self.par.error(f"运行函数[get_device_list]时发生错误：{e}")
+            return []
 
     def quit_handler(self):
         """数据库退出"""

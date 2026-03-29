@@ -31,10 +31,16 @@ import time
 # resp.close()
 
 """remove_sensor_data测试"""
-data = {
-    "id": 1,
-    "device_seq": "a5642f3ecdb7"
-}
-resp = requests.post("http://127.0.0.1:5353/api/remove_sensor_data", json=data)
+# data = {
+#     "id": 1,
+#     "device_seq": "a5642f3ecdb7"
+# }
+# resp = requests.post("http://127.0.0.1:5353/api/remove_sensor_data", json=data)
+# print(resp.text)
+# resp.close()
+
+"""get_device_list测试"""
+data = {}
+resp = requests.post("http://127.0.0.1:5353/api/get_device_list", json=data)
 print(resp.text)
 resp.close()
