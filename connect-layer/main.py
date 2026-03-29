@@ -60,9 +60,10 @@ class SerialToolWindow(QMainWindow):
         # 检查日志文件夹是否存在
         self.check_dir_exists()
 
+        today = datetime.now().strftime("%Y_%m_%d")
         lg.basicConfig(
             format="%(asctime)s - %(levelname)s - %(message)s",
-            filename="./log/app.log",
+            filename=f"./log/{today}.log",
             filemode="a",
             encoding="utf-8"
         )
