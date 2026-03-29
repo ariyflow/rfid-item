@@ -94,6 +94,7 @@ class SerialToolWindow(QMainWindow):
         self.serialt.start()
 
         self.web = webModel(self)
+        self.web.resp_submit.connect(self._web_resp_parse)
     
     def quit_handler(self):
         if hasattr(self, "web"):
@@ -191,6 +192,7 @@ class SerialToolWindow(QMainWindow):
         self.stcope_input_edit: QLineEdit = ui_window.findChild(QLineEdit, "stcope_input_edit") # type:ignore
         self.stcope_setseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_setseq_btn") # type: ignore
         self.stcope_getseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_getseq_btn") # type: ignore
+        self.get_device_list_btn: QPushButton = ui_window.findChild(QPushButton, "get_device_list_btn") # type: ignore | 获取设备列表
         
         # 输出区
         self.output_data_text: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "output_data_text") # type: ignore
@@ -244,6 +246,7 @@ class SerialToolWindow(QMainWindow):
         # 从机
         self.stcope_setseq_btn.clicked.connect(self._setseq_handler)
         self.stcope_getseq_btn.clicked.connect(self._send_fetch_device_seq_handler)
+        self.get_device_list_btn.clicked.connect(self._get_device_list_handler)
 
     def _get_uid_handler(self):
         """获取RFID的uid"""
@@ -368,6 +371,10 @@ class SerialToolWindow(QMainWindow):
         
         self.web.submit_sensor_data(self.device_seq, data.get("temperature"), data.get("light"), data.get("hall")) # type: ignore
     
+    def _get_device_list_handler(self):
+        """获取设备列表"""
+        self.web.get_device_list()
+
     # 日志输出方法
     def _append_log(self, timestamp: str, level: str, message: str):
         """追加日志到显示区"""
@@ -689,6 +696,19 @@ class SerialToolWindow(QMainWindow):
         """清空发送区"""
         self.textSend.clear()
         self.log.info("发送区已清空")
+
+    def _web_resp_parse(self, data: dict):
+        """
+        网络请求响应的处理
+        Args:
+            data:
+                - status: 返回状态码
+                - url: 请求的url
+                - resp: 返回新响应体
+        """
+
+        if data.get("url").endswith("get_device_list") and data.get("status") == 200: # 获取到设备序列号列表，输出
+            self.output_data_text.appendPlainText(data.get("resp"))
     
     def _update_stats(self):
         """更新统计信息 弃用"""
