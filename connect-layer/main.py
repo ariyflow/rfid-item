@@ -20,6 +20,8 @@ import logging as lg
 from model.serialThread import serialThread
 from model.web_model import webModel
 import os
+import random
+import time
 
 # 常量定义
 
@@ -73,6 +75,7 @@ class SerialToolWindow(QMainWindow):
         self.device_seq = b"" # 连接串口后，获取的设备序列号
         self.token = TOKEN
         self.base_url = BASE_URL
+        self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
         
         # 模块声明
         self.serialt = serialThread(self)
@@ -667,12 +670,21 @@ class SerialToolWindow(QMainWindow):
                 self.device_seq = data[4:-1]
                 self.output_data_text.appendPlainText(f"update device sequence: {self._show_btyes_with_space(self.device_seq)}")
                 self.log.info(f"获取到连接从机的序列号：{self.device_seq.hex()}")
+
+                self.check_device_seq(self.device_seq) # 每次获取完从机序列号后，检查从机序列号是否正确
+
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
             else:
                 self.log.warning(f"接收到未编码的指令：{command}")
     
+    def check_device_seq(self, seq: bytes):
+        """检查从机序列号，如果不正确则进行序列号分配"""
+        if seq == b"\x00"*6: # 设备无序列号，进行分配
+            self._get_device_list_handler() # 更新设备列表
+            self._is_need_update_device_seq = True # 回调中使用，需要进行设备序列号更新
+
     def _clear_receive(self):
         """清空接收区"""
         self.textReceive.clear()
@@ -695,7 +707,41 @@ class SerialToolWindow(QMainWindow):
 
         if data.get("url").endswith("get_device_list") and data.get("status") == 200: # 获取到设备序列号列表，输出
             self.output_data_text.appendPlainText(data.get("resp"))
-    
+
+            # 如果需要更新从机设备的序列号，进入下面的逻辑
+            if self._is_need_update_device_seq:
+                try:
+                    device_list = list(data.get("resp"))
+                    tmp_seq = self.create_device_seq(device_list)
+
+                    data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14
+                    data = data+self._get_check_sum(data)
+                    self.serialt.send_data(data)
+
+                    self._is_need_update_device_seq = False # 恢复原来的状态
+                    self.device_seq = tmp_seq # 更新设备序列号为新的序列号
+                except Exception as e:
+                    self.log.error(f"运行函数[_web_resp_parse]发生错误：{e}")
+
+    def create_device_seq(self, device_list: list):
+        """返回一个尽可能与device_list不冲突的序列号"""
+        existing_seqs = set()
+        for seq_hex in device_list:
+            try:
+                existing_seqs.add(int(seq_hex, 16))
+            except ValueError:
+                continue
+        
+        # 生成随机序列号，最多尝试100次
+        for _ in range(100):
+            new_seq = random.randint(0, 0xFFFFFFFFFFFF) # 6字节最大值
+            if new_seq not in existing_seqs:
+                self.log.info(f"自动分配序列号：{new_seq:02X}")
+                return new_seq.to_bytes(6, "big")
+        
+        # 100次都冲突的话，返回一个随机值（极不可能发生）
+        return random.randint(1, 0xFFFFFFFFFFFF).to_bytes(6, "big")
+
     def _update_stats(self):
         """更新统计信息 弃用"""
         pass
