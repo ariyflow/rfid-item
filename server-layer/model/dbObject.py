@@ -10,31 +10,42 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目
 DATABASE_LOCATION = os.path.join(BASE_DIR, "database")  # 数据保存的目录
 
 DATABASE_NAME = "data.db"  # 数据保存到目录
-
+DEVICE_TABLE_NAME = "devices" # 设备列表的名字
+SENSOR_TABLE_PREFIX = "sensor_data_" # 设备传感器数据表名字的前缀
 
 class dbObject:
     def __init__(self, logger):
-
         self.par = logger
-
         if not os.path.exists(DATABASE_LOCATION):
             os.makedirs(DATABASE_LOCATION)
 
         self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
         self.cur = self.conn.cursor()
-
-        self.cur.execute("""
-            CREATE TABLE IF NOT EXISTS sensor_data(
+        # 创建设备表（如果不存在）
+        self.cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {DEVICE_TABLE_NAME}(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_seq TEXT,
-                temperature FLOAT,
-                light INT,
-                hall INT,
-                timestamp TEXT
+                device_seq TEXT UNIQUE,
+                created_at TEXT
             )
         """)
         self.conn.commit()
 
+        # 检查所有设备的表是否存在，不存在则创建
+        self.cur.execute("SELECT device_seq FROM devices")
+        device_list = self.cur.fetchall()
+        for (device_seq,) in device_list:
+            table_name = f"{SENSOR_TABLE_PREFIX}{device_seq}"
+            self.cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table_name}(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    temperature FLOAT,
+                    light INT,
+                    hall INT,
+                    timestamp TEXT
+                )
+            """)
+        self.conn.commit()
         self.cur.close()
         self.conn.close()
 
@@ -47,17 +58,39 @@ class dbObject:
         """
         if not data or not data.get("device_seq"):
             return False
+        
+        device_seq = data.get("device_seq")
+        table_name = f"{SENSOR_TABLE_PREFIX}{device_seq}"
+
         try:
             self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
             self.cur = self.conn.cursor()
 
+
+            # 检查 devices 表中是否存在该设备
+            self.cur.execute("SELECT device_seq FROM devices WHERE device_seq = ?", (device_seq,))
+            if not self.cur.fetchone():
+                # 创建设备专属表
+                self.cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name}(
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        temperature FLOAT,
+                        light INT,
+                        hall INT,
+                        timestamp TEXT
+                    )
+                """)
+                # 在 devices 表中添加设备记录
+                self.cur.execute(
+                    "INSERT INTO devices (device_seq, created_at) VALUES (?, ?)",
+                    (device_seq, data.get("timestamp"))
+                )
+                self.par.info(f"创建新设备表：{table_name}")
+
+            # 插入数据到设备专属表
             self.cur.execute(
-                """
-                INSERT INTO sensor_data (device_seq, temperature, light, hall, timestamp)
-                VALUES (?, ?, ?, ?, ?)
-            """,
+                f"INSERT INTO {table_name} (temperature, light, hall, timestamp) VALUES (?, ?, ?, ?)",
                 (
-                    data.get("device_seq"),
                     data.get("temperature"),
                     data.get("light"),
                     data.get("hall"),
@@ -65,8 +98,7 @@ class dbObject:
                 ),
             )
             self.conn.commit()
-            self.par.debug(f"向数据库写入信息成功：{data}")
-
+            self.par.debug(f"向设备表 {table_name} 写入信息成功：{data}")
             self.cur.close()
             self.conn.close()
             return True
@@ -79,75 +111,69 @@ class dbObject:
         Args:
             start: 起始位置（从 0 开始）
             num: 返回 n 条数据
-            device_seq: 可选，设备序列号筛选
+            device_seq: 要获取数据的设备序列号
         Returns:
             list: 传感器数据列表
         """
+        if not device_seq:
+            self.par.error("get_sensor_data 需要指定 device_seq")
+            return []
+        
+        table_name = f"sensor_data_{device_seq}"
+        
         try:
             self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
             self.cur = self.conn.cursor()
-
-            if device_seq:
-                self.cur.execute(
-                    """
-                    SELECT id, device_seq, temperature, light, hall, timestamp
-                    FROM sensor_data
-                    WHERE device_seq = ?
-                    ORDER BY id DESC
-                    LIMIT ? OFFSET ?
-                """,
-                    (device_seq, num, start),
-                )
-            else:
-                self.cur.execute(
-                    """
-                    SELECT id, device_seq, temperature, light, hall, timestamp
-                    FROM sensor_data
-                    ORDER BY id DESC
-                    LIMIT ? OFFSET ?
-                """,
-                    (num, start),
-                )
-
+            self.cur.execute(
+                f"""
+                SELECT id, temperature, light, hall, timestamp
+                FROM {table_name}
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+            """,
+                (num, start),
+            )
             tmp = self.cur.fetchall()
-            self.par.info(f"获取数据库信息成功，信息条数：{len(tmp)}")
-            self.par.debug(f"获取到数据：{tmp}")
+            self.par.info(f"从设备表 {table_name} 获取数据成功，条数：{len(tmp)}")
 
             self.cur.close()
             self.conn.close()
-
-            columns = [desc[0] for desc in self.cur.description]
+            columns = ["id", "temperature", "light", "hall", "timestamp"]
             return [dict(zip(columns, row)) for row in tmp]
-        
         except Exception as e:
             self.par.error(f"运行函数[get_sensor_data]时发生错误：{e}")
+            return []
 
-    def remove_sensor_data(self, id: int) -> dict:
+    def remove_sensor_data(self, id: int, device_seq: str = None) -> dict:
         """删除传感器数据
         Args:
             id: 要删除的数据ID
+            device_seq: 设备序列号（必填）
         Returns:
             dict: 包含删除状态的字典
-                - status: "success" | "not_found" | "error"
-                - message: 状态描述
         """
+        if not device_seq:
+            return {"status": "error", "message": "缺少 device_seq 参数"}
+        
         if id is None or not isinstance(id, int) or id <= 0:
             return {"status": "error", "message": "无效的ID"}
+        
+        table_name = f"sensor_data_{device_seq}"
+        
         try:
             self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
             self.cur = self.conn.cursor()
-            # 先查询该ID是否存在
-            self.cur.execute("SELECT id FROM sensor_data WHERE id = ?", (id,))
+            
+            self.cur.execute(f"SELECT id FROM {table_name} WHERE id = ?", (id,))
             result = self.cur.fetchone()
             if result is None:
                 self.cur.close()
                 self.conn.close()
                 return {"status": "not_found", "message": f"ID为{id}的数据不存在"}
-            # 执行删除
-            self.cur.execute("DELETE FROM sensor_data WHERE id = ?", (id,))
+            
+            self.cur.execute(f"DELETE FROM {table_name} WHERE id = ?", (id,))
             self.conn.commit()
-            self.par.debug(f"删除ID为 {id} 的传感器数据成功")
-
+            self.par.debug(f"从设备表 {table_name} 删除ID为 {id} 的传感器数据成功")
             self.cur.close()
             self.conn.close()
             return {"status": "success", "message": "删除成功"}
