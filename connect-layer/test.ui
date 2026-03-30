@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>900</width>
-    <height>831</height>
+    <height>700</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>900</width>
-    <height>700</height>
+    <width>0</width>
+    <height>0</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -39,7 +39,7 @@
     <item>
      <widget class="QTabWidget" name="tabMain">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tabSerial">
        <attribute name="title">
@@ -434,7 +434,7 @@
            </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,10">
+           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,5">
             <item>
              <layout class="QVBoxLayout" name="verticalLayout_9">
               <item>

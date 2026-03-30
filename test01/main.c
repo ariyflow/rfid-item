@@ -18,16 +18,7 @@ xdata unsigned char mode = 0x00; // 当前的模式
 xdata unsigned char counter_1s = 0x00; // 1s回调的计数
 xdata unsigned char is_stream_led = 0; // MODE1下控制led是否流水
 xdata unsigned char led_vector = 0x01; // MODE1下的下一个led状态
-
-// 计算buf数组的偶校验结果值
-unsigned char set_checksum(unsigned char* buf, unsigned char num){
-	xdata unsigned char i;
-	xdata unsigned char tmp = 0x00;
-	for(i=0;i<num;i++){
-		tmp ^= buf[i];
-	}
-	return tmp;
-}
+xdata unsigned char device_seq[6] = {0,0,0,0,0,0}; // 设备序列号
 
 code unsigned char test_data[16] = { // 测试数据
 	1,2,3,4,
@@ -36,44 +27,55 @@ code unsigned char test_data[16] = { // 测试数据
 	13,14,15,16
 };
 
-// 简单获取uid，成功返回0000 0011 = 0x03
-unsigned char simple_read_uid(unsigned char* _id){
-	xdata unsigned char tmp = 0x00, try_cnt = 10;
-	
-	while(1){
-		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
-		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
-		
-		if(tmp == 0x03) break;
-		else{ // 未成功
-			if(try_cnt-- == 0) break; // 尝试10次后，直接返回
-			else tmp = 0; // 再次尝试
-		}
-	}
-	return tmp;
-}
+unsigned char simple_read_uid(unsigned char* _id);
+unsigned char writeRFID(unsigned char _addr, unsigned char* _data);
+unsigned char readRFID(unsigned char _addr, unsigned char* _uid,unsigned char* _buf);
+unsigned char read_uid(unsigned char* _id);
+void commit_sensor_data();
+unsigned char set_checksum(unsigned char* buf, unsigned char num); // 计算偶校验值
+/*此处进入核心部分*/
+void my1SCallback();
+void my100msCallback();
+void myKeyCallback(); // 按键回调
+void myADCKeyCallback(); // ADC按键回调
+void myUartCallback(); // 串口回调
+void read_device_seq(); // 读取设备序列号
 
-// 获取当前RFID的序列号，保存到参数_id中
-// 返回值为0000 0111 = 0x07表示正确
-unsigned char read_uid(unsigned char* _id){
-	xdata unsigned char tmp = 0x00, try_cnt = 10;
+void main() {
+  unsigned char ver;
 	
-	while(1){
-		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+	sysInit();
+	disInit();
+	ATInit();
+  	uart1Init(9600);
+	
+	setUart1Buf(receive_buf, 24, send_buf, 2);
+	
+	// adc初始化时，当时将p1.0和p1.1设置为了ADC引脚，导致这里错误
+	// 现已解决
+	adcInit(); // 暂时不能开adc的中断
+	
+	setCallback(enumEventInt100, my100msCallback);
+	setCallback(enumEventKey, myKeyCallback);
+	setCallback(enumEventAdcKey, myADCKeyCallback);
+	setCallback(enumEventUart1, myUartCallback);
+	setCallback(enumEventInt1000, my1SCallback);
+	send_buf[0] = 0xaa;
+	send_buf[1] = 0x55;
 
-		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
-		
-		// 要获取uid，其实不需要这一步，但是为了停机，先选卡
-		if(PcdSelect(_id) == 0) tmp |= (1<<2); // 选卡，选择UID对应的卡片
-		
-		if(tmp == 0x07) break;
-		else{ // 未成功
-			if(try_cnt-- == 0) break; // 尝试10次后，直接返回
-			else tmp = 0; // 再次尝试
-		}
-	}
-	PcdHalt();
-	return tmp;
+	read_device_seq();
+	
+	setLed(0x15);
+	setSeg(0,1,2,3,4,5,6,7);
+
+	rc522Init();
+	// delay_ms(1000);
+    
+	while(1) {
+			// ver = ReadRawRC(VersionReg);
+			// uart1Send(&ver, 1);
+			sysRun();
+    }
 }
 
 // 正确返回0010 1111 = 0x2f
@@ -105,6 +107,23 @@ unsigned char readRFID(unsigned char _addr, unsigned char* _uid,unsigned char* _
 	return tmp;
 }
 
+// 简单获取uid，成功返回0000 0011 = 0x03
+unsigned char simple_read_uid(unsigned char* _id){
+	xdata unsigned char tmp = 0x00, try_cnt = 10;
+	
+	while(1){
+		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
+		
+		if(tmp == 0x03) break;
+		else{ // 未成功
+			if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+			else tmp = 0; // 再次尝试
+		}
+	}
+	return tmp;
+}
+
 // 向地址_addr写入_data
 // 成功返回0001 1111=0x1F
 unsigned char writeRFID(unsigned char _addr, unsigned char* _data){
@@ -129,9 +148,47 @@ unsigned char writeRFID(unsigned char _addr, unsigned char* _data){
 			else tmp = 0; // 再次尝试
 		}
 	}
-
-	
 	PcdHalt();
+	return tmp;
+}
+
+// 获取当前RFID的序列号，保存到参数_id中
+// 返回值为0000 0111 = 0x07表示正确
+unsigned char read_uid(unsigned char* _id){
+	xdata unsigned char tmp = 0x00, try_cnt = 10;
+	
+	while(1){
+		if(PcdRequest(0x52, 0x0400) == 0)tmp |= (1<<0);// 寻卡 S50是0x0400
+
+		if(PcdAnticoll(_id) == 0)tmp |= (1<<1); // 防冲突，返回uid
+		
+		// 要获取uid，其实不需要这一步，但是为了停机，先选卡
+		if(PcdSelect(_id) == 0) tmp |= (1<<2); // 选卡，选择UID对应的卡片
+		
+		if(tmp == 0x07) break;
+		else{ // 未成功
+			if(try_cnt-- == 0) break; // 尝试10次后，直接返回
+			else tmp = 0; // 再次尝试
+		}
+	}
+	PcdHalt();
+	return tmp;
+}
+
+void read_device_seq(){
+	unsigned char i;
+	for(i=0;i<6;i++){
+		device_seq[i] = rAT(0x50+i);
+	}
+}
+
+// 计算buf数组的偶校验结果值
+unsigned char set_checksum(unsigned char* buf, unsigned char num){
+	xdata unsigned char i;
+	xdata unsigned char tmp = 0x00;
+	for(i=0;i<num;i++){
+		tmp ^= buf[i];
+	}
 	return tmp;
 }
 
@@ -150,8 +207,6 @@ void commit_sensor_data(){
 	uart1Send(send_buf, 11);
 
 }
-
-/*此处进入核心部分*/
 
 void my1SCallback(){
 	if(++counter_1s == 30)counter_1s = 0;
@@ -182,122 +237,6 @@ void my100msCallback(){
 			setNum(0);
 		}
 	}
-}
-
-void myKeyCallback(){
-	xdata unsigned char key;
-
-	// key2是模式切换键，与其余逻辑分离
-	key = getKeyAct(enumKey2);
-	if(key == enumKeyPress){ // key2按下，切换模式
-		// 切换前的操作
-
-		mode = (mode+1)%3;
-
-		// 切换后的操作
-		if(mode == 0){
-			setNum(1234567);
-		}
-		else if(mode == 1){
-			setLed(0x00);
-			setNum(0);
-		}
-		else if(mode == 2){
-			setNum(2);
-		}
-	}
-
-	if(mode == 0){ // MODE0 待机模式
-		key = getKeyAct(enumKey1);
-		if(key == enumKeyPress){ // key1 按下，获取RFID序列号
-			// WriteRawRC(CommandReg,PCD_RESETPHASE);
-
-	//		send_buf[0] = ReadRawRC(CommandReg);
-	//		send_buf[1] = ReadRawRC(ModeReg);
-	//		send_buf[2] = ReadRawRC(TReloadRegL);
-	//		send_buf[3] = ReadRawRC(TReloadRegH);
-	//		send_buf[4] = ReadRawRC(TModeReg);
-	//		send_buf[5] = ReadRawRC(TPrescalerReg);
-	//		send_buf[6] = ReadRawRC(TxAskReg);
-	//		send_buf[7] = 0xAA;
-	//		uart1Send(send_buf, 8);
-	//		setLed(0xa3);
-
-			// 获取uid
-			if(read_uid(uid)!=0x07)return;
-			uart1Send(uid, 4);
-		}
-		// ReadCardData(uid, card_buf);
-
-	}
-
-}
-
-void myADCKeyCallback(){
-	xdata unsigned char key;
-
-	if(mode == 0){ // MODE0 待机模式
-		
-		key = getADCKeyAct(enumADCKey3);
-		// setLed(key);
-		if(key == enumKeyPress){ // key3按下，返回RFID序列号和地址20的数据
-			
-			// 返回序列号和地址20的数据
-			status = readRFID(20, uid, card_data);
-			if(status != 0x2F){ // 失败返回状态码
-				send_buf[2] = status;
-				uart1Send(send_buf, 3);
-			}
-			else{
-				uart1Send(uid, 4);
-				uart1Send(card_data, 16);
-			}
-			// do {
-			// 	status = readRFID(20, uid, card_data);
-			// }
-			// while(status != 0x2f);
-			// uart1Send(uid, 4);
-			// uart1Send(card_data, 16);
-		}
-
-		key = getADCKeyAct(enumADCKeyCenter);
-		if(key == enumKeyPress){
-
-			// 向地址20写入数据
-			send_buf[2] = writeRFID(20, test_data);
-			uart1Send(send_buf, 3);
-		}
-
-		key = getADCKeyAct(enumADCKeyUp);
-		if(key == enumKeyPress){
-			commit_sensor_data();
-
-		}
-	}
-
-	// key = getADCKeyAct(enumADCKeyUp);
-	// if(key == enumKeyPress){
-
-	// }
-	// key = getADCKeyAct(enumADCKeyDown);
-	// if(key == enumKeyPress){
-
-	// }
-	// key = getADCKeyAct(enumADCKeyLeft);
-	// if(key == enumKeyPress){
-	// 	// 写入失败，返回失败的数据帧
-	// 	// 包头2+数据字节1+指令字节1+返回状态1+偶校验1=6
-	// 	send_buf[2]=0x03;
-	// 	send_buf[3]=0x02;
-	// 	send_buf[4]=0x00;
-	// 	send_buf[5]=set_checksum(send_buf, 5);
-	// 	uart1Send(send_buf, 6);
-	// }
-	// key = getADCKeyAct(enumADCKeyRight);
-	// if(key == enumKeyPress){
-
-	// }
-	
 }
 
 void myUartCallback(){
@@ -436,14 +375,16 @@ void myUartCallback(){
 		wAT(0x54, receive_buf[7]);
 		wAT(0x55, receive_buf[8]);
 
+		read_device_seq(); // 验证正确性，再读一次
+
 		send_buf[2] = 0x08;
 		send_buf[3] = 0x04;
-		send_buf[4] = rAT(0x50);
-		send_buf[5] = rAT(0x51);
-		send_buf[6] = rAT(0x52);
-		send_buf[7] = rAT(0x53);
-		send_buf[8] = rAT(0x54);
-		send_buf[9] = rAT(0x55);
+		send_buf[4] = device_seq[0];
+		send_buf[5] = device_seq[1];
+		send_buf[6] = device_seq[2];
+		send_buf[7] = device_seq[3];
+		send_buf[8] = device_seq[4];
+		send_buf[9] = device_seq[5];
 		send_buf[10] = set_checksum(send_buf, 10);
 
 		uart1Send(send_buf, 11);
@@ -454,12 +395,12 @@ void myUartCallback(){
 		*/
 		send_buf[2] = 0x08;
 		send_buf[3] = 0x05;
-		send_buf[4] = rAT(0x50);
-		send_buf[5] = rAT(0x51);
-		send_buf[6] = rAT(0x52);
-		send_buf[7] = rAT(0x53);
-		send_buf[8] = rAT(0x54);
-		send_buf[9] = rAT(0x55);
+		send_buf[4] = device_seq[0];
+		send_buf[5] = device_seq[1];
+		send_buf[6] = device_seq[2];
+		send_buf[7] = device_seq[3];
+		send_buf[8] = device_seq[4];
+		send_buf[9] = device_seq[5];
 		send_buf[10] = set_checksum(send_buf, 10);
 
 		uart1Send(send_buf, 11);
@@ -470,79 +411,118 @@ void myUartCallback(){
 	}
 }
 
-//void main(){
-//	
-//	sysInit();
-//	disInit();
+void myADCKeyCallback(){
+	xdata unsigned char key;
 
-//	uart1Init(9600);
-//	send_buf[0] = 0xaa;
-//	send_buf[1] = 0x55;
-//	setUart1Buf(receive_buf, 24, send_buf, 2);
-//	adcInit();
-//	rc522Init();
+	if(mode == 0){ // MODE0 待机模式
+		
+		key = getADCKeyAct(enumADCKey3);
+		// setLed(key);
+		if(key == enumKeyPress){ // key3按下，返回RFID序列号和地址20的数据
+			
+			// 返回序列号和地址20的数据
+			status = readRFID(20, uid, card_data);
+			if(status != 0x2F){ // 失败返回状态码
+				send_buf[2] = status;
+				uart1Send(send_buf, 3);
+			}
+			else{
+				uart1Send(uid, 4);
+				uart1Send(card_data, 16);
+			}
+			// do {
+			// 	status = readRFID(20, uid, card_data);
+			// }
+			// while(status != 0x2f);
+			// uart1Send(uid, 4);
+			// uart1Send(card_data, 16);
+		}
 
-//	setSeg(0,0,0,0,0,0,0,0);
-//	
-//	setCallback(enumEventInt100, my100msCallback);
-//	setCallback(enumEventKey, myKeyCallback);
-//	setCallback(enumEventAdcKey, myADCKeyCallback);
-//	setCallback(enumEventUart1, myUartCallback);
-//	
-//	setLed(0x15);
-//	
-//	while(1){
-//		sysRun();
-//	}
-//}
+		key = getADCKeyAct(enumADCKeyCenter);
+		if(key == enumKeyPress){
 
-void delay_ms(unsigned int xms)		//@11.0592MHz
-{
-	unsigned char i, j;
-    while(xms--){
-        _nop_();
-        _nop_();
-        _nop_();
-        i = 11;
-        j = 190;
-        do
-        {
-            while (--j);
-        } while (--i);
-    }
+			// 向地址20写入数据
+			send_buf[2] = writeRFID(20, test_data);
+			uart1Send(send_buf, 3);
+		}
+
+		key = getADCKeyAct(enumADCKeyUp);
+		if(key == enumKeyPress){
+			commit_sensor_data();
+
+		}
+	}
+
+	// key = getADCKeyAct(enumADCKeyUp);
+	// if(key == enumKeyPress){
+
+	// }
+	// key = getADCKeyAct(enumADCKeyDown);
+	// if(key == enumKeyPress){
+
+	// }
+	// key = getADCKeyAct(enumADCKeyLeft);
+	// if(key == enumKeyPress){
+	// 	// 写入失败，返回失败的数据帧
+	// 	// 包头2+数据字节1+指令字节1+返回状态1+偶校验1=6
+	// 	send_buf[2]=0x03;
+	// 	send_buf[3]=0x02;
+	// 	send_buf[4]=0x00;
+	// 	send_buf[5]=set_checksum(send_buf, 5);
+	// 	uart1Send(send_buf, 6);
+	// }
+	// key = getADCKeyAct(enumADCKeyRight);
+	// if(key == enumKeyPress){
+
+	// }
+	
 }
 
-void main() {
-  unsigned char ver;
-	
-	sysInit();
-	disInit();
-	ATInit();
-  	uart1Init(9600);
-	
-	setUart1Buf(receive_buf, 24, send_buf, 2);
-	
-	// adc初始化时，当时将p1.0和p1.1设置为了ADC引脚，导致这里错误
-	// 现已解决
-	adcInit(); // 暂时不能开adc的中断
-	
-	setCallback(enumEventInt100, my100msCallback);
-	setCallback(enumEventKey, myKeyCallback);
-	setCallback(enumEventAdcKey, myADCKeyCallback);
-	setCallback(enumEventUart1, myUartCallback);
-	setCallback(enumEventInt1000, my1SCallback);
-	send_buf[0] = 0xaa;
-	send_buf[1] = 0x55;
-	
-	setLed(0x15);
-	setSeg(0,1,2,3,4,5,6,7);
+void myKeyCallback(){
+	xdata unsigned char key;
 
-	rc522Init();
-	// delay_ms(1000);
-    
-	while(1) {
-			// ver = ReadRawRC(VersionReg);
-			// uart1Send(&ver, 1);
-			sysRun();
-    }
+	// key2是模式切换键，与其余逻辑分离
+	key = getKeyAct(enumKey2);
+	if(key == enumKeyPress){ // key2按下，切换模式
+		// 切换前的操作
+
+		mode = (mode+1)%3;
+
+		// 切换后的操作
+		if(mode == 0){
+			setNum(1234567);
+		}
+		else if(mode == 1){
+			setLed(0x00);
+			setNum(0);
+		}
+		else if(mode == 2){
+			setNum(2);
+		}
+	}
+
+	if(mode == 0){ // MODE0 待机模式
+		key = getKeyAct(enumKey1);
+		if(key == enumKeyPress){ // key1 按下，获取RFID序列号
+			// WriteRawRC(CommandReg,PCD_RESETPHASE);
+
+	//		send_buf[0] = ReadRawRC(CommandReg);
+	//		send_buf[1] = ReadRawRC(ModeReg);
+	//		send_buf[2] = ReadRawRC(TReloadRegL);
+	//		send_buf[3] = ReadRawRC(TReloadRegH);
+	//		send_buf[4] = ReadRawRC(TModeReg);
+	//		send_buf[5] = ReadRawRC(TPrescalerReg);
+	//		send_buf[6] = ReadRawRC(TxAskReg);
+	//		send_buf[7] = 0xAA;
+	//		uart1Send(send_buf, 8);
+	//		setLed(0xa3);
+
+			// 获取uid
+			if(read_uid(uid)!=0x07)return;
+			uart1Send(uid, 4);
+		}
+		// ReadCardData(uid, card_buf);
+
+	}
+
 }

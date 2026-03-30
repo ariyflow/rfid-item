@@ -705,18 +705,18 @@ class SerialToolWindow(QMainWindow):
                 - resp: 返回新响应体
         """
 
-        if data.get("url").endswith("get_device_list") and data.get("status") == 200: # 获取到设备序列号列表，输出
-            self.output_data_text.appendPlainText(data.get("resp"))
+        if data.get("url").endswith("get_device_list") and data.get("status") == 200: # type: ignore # 获取到设备序列号列表，输出
+            self.output_data_text.appendPlainText(data.get("resp")) # type: ignore
 
             # 如果需要更新从机设备的序列号，进入下面的逻辑
             if self._is_need_update_device_seq:
                 try:
-                    device_list = list(data.get("resp"))
+                    device_list = list(data.get("resp")) # type: ignore
                     tmp_seq = self.create_device_seq(device_list)
 
-                    data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14
-                    data = data+self._get_check_sum(data)
-                    self.serialt.send_data(data)
+                    data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14 # type: ignore
+                    data = data+self._get_check_sum(data) # type: ignore
+                    self.serialt.send_data(data) # type: ignore
 
                     self._is_need_update_device_seq = False # 恢复原来的状态
                     self.device_seq = tmp_seq # 更新设备序列号为新的序列号
