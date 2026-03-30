@@ -19,6 +19,7 @@ xdata unsigned char counter_1s = 0x00; // 1s回调的计数
 xdata unsigned char is_stream_led = 0; // MODE1下控制led是否流水
 xdata unsigned char led_vector = 0x01; // MODE1下的下一个led状态
 xdata unsigned char device_seq[6] = {0,0,0,0,0,0}; // 设备序列号
+xdata unsigned char cur_device_flag = 1; // MODE0模式下控制当前显示的设备序列号（1表示前三个字节，0表示后3个字节）
 
 code unsigned char test_data[16] = { // 测试数据
 	1,2,3,4,
@@ -42,7 +43,7 @@ void myUartCallback(); // 串口回调
 void read_device_seq(); // 读取设备序列号
 
 void main() {
-  unsigned char ver;
+  // unsigned char ver;
 	
 	sysInit();
 	disInit();
@@ -182,6 +183,13 @@ void read_device_seq(){
 	}
 }
 
+void write_device_seq(unsigned char* tmp){
+	unsigned char i;
+	for(i=0;i<6;i++){
+		wAT(0x50+i, tmp[i]);
+	}
+}
+
 // 计算buf数组的偶校验结果值
 unsigned char set_checksum(unsigned char* buf, unsigned char num){
 	xdata unsigned char i;
@@ -226,6 +234,16 @@ void my1SCallback(){
 }
 
 void my100msCallback(){
+	if(mode == 0){
+		if(cur_device_flag){
+			setLed(0x38); // 00111000
+			setSeg(device_seq[0]>>4,device_seq[0]&0x0f,54,device_seq[1]>>4,device_seq[1]&0x0f,54,device_seq[2]>>4,device_seq[2]&0x0f);
+		}
+		else{
+			setLed(0x07); // 00000111
+			setSeg(device_seq[3]>>4,device_seq[3]&0x0f,54,device_seq[4]>>4,device_seq[4]&0x0f,54,device_seq[5]>>4,device_seq[5]&0x0f);
+		}
+	}
 	if(mode == 1){
 		if(is_stream_led){
 			setLed(led_vector);
@@ -245,10 +263,10 @@ void myUartCallback(){
 	xdata unsigned char write_addr = 0x00; // 要写入数据的地址
 	
 	// mode0下回显所有信息
-	if (mode == 0){
-		uart1Send(receive_buf, 24);
-		return;
-	}
+	// if (mode == 0){
+	// 	uart1Send(receive_buf, 24);
+	// 	return;
+	// }
 
 
 	// 收到数据后，首先进行偶校验判断
@@ -368,12 +386,13 @@ void myUartCallback(){
 		
 		*/
 		
-		wAT(0x50, receive_buf[3]);
-		wAT(0x51, receive_buf[4]);
-		wAT(0x52, receive_buf[5]);
-		wAT(0x53, receive_buf[6]);
-		wAT(0x54, receive_buf[7]);
-		wAT(0x55, receive_buf[8]);
+		write_device_seq(&receive_buf[3]);
+		// wAT(0x50, receive_buf[3]);
+		// wAT(0x51, receive_buf[4]);
+		// wAT(0x52, receive_buf[5]);
+		// wAT(0x53, receive_buf[6]);
+		// wAT(0x54, receive_buf[7]);
+		// wAT(0x55, receive_buf[8]);
 
 		read_device_seq(); // 验证正确性，再读一次
 
@@ -440,16 +459,23 @@ void myADCKeyCallback(){
 
 		key = getADCKeyAct(enumADCKeyCenter);
 		if(key == enumKeyPress){
-
+			xdata unsigned char tmp_data[6] = {0,0,0,0,0,0};
+			write_device_seq(tmp_data);
+			read_device_seq();
 			// 向地址20写入数据
-			send_buf[2] = writeRFID(20, test_data);
-			uart1Send(send_buf, 3);
+			// send_buf[2] = writeRFID(20, test_data);
+			// uart1Send(send_buf, 3);
 		}
 
 		key = getADCKeyAct(enumADCKeyUp);
 		if(key == enumKeyPress){
-			commit_sensor_data();
+			// commit_sensor_data();
+			cur_device_flag = 1 - cur_device_flag;
+		}
 
+		key = getADCKeyAct(enumADCKeyDown);
+		if(key == enumKeyPress){
+			cur_device_flag = 1 - cur_device_flag;
 		}
 	}
 

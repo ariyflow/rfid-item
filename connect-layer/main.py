@@ -357,7 +357,7 @@ class SerialToolWindow(QMainWindow):
         if any(data.get(k) is None for k in ("temperature", "light", "hall")):
             self.log.error(f"函数[submit_sensor_data_handler]运行错误：参数不全。传入参数：{data}")
             return
-        
+
         self.web.submit_sensor_data(self.device_seq, data.get("temperature"), data.get("light"), data.get("hall")) # type: ignore
     
     def _get_device_list_handler(self):
@@ -631,7 +631,7 @@ class SerialToolWindow(QMainWindow):
                     self.textReceive.appendPlainText(f"<<< {data}") # type: ignore
             
             command = data[3]
-            if command == 0x00: # 单片机返回uid
+            if command == 0x00: # 单片机返回RFID的uid
                 # aa 55 06 00 d1 d2 d3 d4 xx
                 uid = data[4:8]
                 uid = " ".join(f"{b:02X}" for b in uid)
@@ -657,6 +657,9 @@ class SerialToolWindow(QMainWindow):
                 light = int.from_bytes(data[6:8], byteorder="big")
                 hall = data[8]
                 shake = data[9]
+                
+                self.check_device_seq(self.device_seq) # 获取到传感器数据，准备上报时，检查设备序列号
+                
                 self.submit_sensor_data_handler({
                     "temperature": temperture,
                     "light": light,
