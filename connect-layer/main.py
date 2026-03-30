@@ -1,17 +1,3 @@
-"""
-RFID Connect Layer - 串口调试工具
-基于 PySide6 的串口通信工具，支持日志输出和扩展
-
-文件结构:
-    - main.py: 主程序
-    - test.ui: Qt Designer UI 文件
-
-运行方式:
-    cd ~/code/rfid-item/connect-layer
-    source .venv/bin/activate
-    python main.py
-"""
-
 import sys
 import os
 import serial
@@ -34,6 +20,8 @@ import logging as lg
 from model.serialThread import serialThread
 from model.web_model import webModel
 import os
+import random
+import time
 
 # 常量定义
 
@@ -60,9 +48,10 @@ class SerialToolWindow(QMainWindow):
         # 检查日志文件夹是否存在
         self.check_dir_exists()
 
+        today = datetime.now().strftime("%Y_%m_%d")
         lg.basicConfig(
             format="%(asctime)s - %(levelname)s - %(message)s",
-            filename="./log/app.log",
+            filename=f"./log/{today}.log",
             filemode="a",
             encoding="utf-8"
         )
@@ -86,6 +75,7 @@ class SerialToolWindow(QMainWindow):
         self.device_seq = b"" # 连接串口后，获取的设备序列号
         self.token = TOKEN
         self.base_url = BASE_URL
+        self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
         
         # 模块声明
         self.serialt = serialThread(self)
@@ -93,6 +83,7 @@ class SerialToolWindow(QMainWindow):
         self.serialt.start()
 
         self.web = webModel(self)
+        self.web.resp_submit.connect(self._web_resp_parse)
     
     def quit_handler(self):
         if hasattr(self, "web"):
@@ -190,6 +181,7 @@ class SerialToolWindow(QMainWindow):
         self.stcope_input_edit: QLineEdit = ui_window.findChild(QLineEdit, "stcope_input_edit") # type:ignore
         self.stcope_setseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_setseq_btn") # type: ignore
         self.stcope_getseq_btn: QPushButton = ui_window.findChild(QPushButton, "stcope_getseq_btn") # type: ignore
+        self.get_device_list_btn: QPushButton = ui_window.findChild(QPushButton, "get_device_list_btn") # type: ignore | 获取设备列表
         
         # 输出区
         self.output_data_text: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "output_data_text") # type: ignore
@@ -243,6 +235,7 @@ class SerialToolWindow(QMainWindow):
         # 从机
         self.stcope_setseq_btn.clicked.connect(self._setseq_handler)
         self.stcope_getseq_btn.clicked.connect(self._send_fetch_device_seq_handler)
+        self.get_device_list_btn.clicked.connect(self._get_device_list_handler)
 
     def _get_uid_handler(self):
         """获取RFID的uid"""
@@ -367,6 +360,10 @@ class SerialToolWindow(QMainWindow):
         
         self.web.submit_sensor_data(self.device_seq, data.get("temperature"), data.get("light"), data.get("hall")) # type: ignore
     
+    def _get_device_list_handler(self):
+        """获取设备列表"""
+        self.web.get_device_list()
+
     # 日志输出方法
     def _append_log(self, timestamp: str, level: str, message: str):
         """追加日志到显示区"""
@@ -454,7 +451,7 @@ class SerialToolWindow(QMainWindow):
         self.comboPort.clear()
         
         ports = serial.tools.list_ports.comports()
-        
+        ports = [p for p in ports if "USB" in p.hwid]
         for port in sorted(ports, key=lambda p: p.device):
             # 安全：清理端口描述中的特殊字符
             safe_desc = html.escape(str(port.description))
@@ -673,12 +670,21 @@ class SerialToolWindow(QMainWindow):
                 self.device_seq = data[4:-1]
                 self.output_data_text.appendPlainText(f"update device sequence: {self._show_btyes_with_space(self.device_seq)}")
                 self.log.info(f"获取到连接从机的序列号：{self.device_seq.hex()}")
+
+                self.check_device_seq(self.device_seq) # 每次获取完从机序列号后，检查从机序列号是否正确
+
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
             else:
                 self.log.warning(f"接收到未编码的指令：{command}")
     
+    def check_device_seq(self, seq: bytes):
+        """检查从机序列号，如果不正确则进行序列号分配"""
+        if seq == b"\x00"*6: # 设备无序列号，进行分配
+            self._get_device_list_handler() # 更新设备列表
+            self._is_need_update_device_seq = True # 回调中使用，需要进行设备序列号更新
+
     def _clear_receive(self):
         """清空接收区"""
         self.textReceive.clear()
@@ -688,7 +694,54 @@ class SerialToolWindow(QMainWindow):
         """清空发送区"""
         self.textSend.clear()
         self.log.info("发送区已清空")
-    
+
+    def _web_resp_parse(self, data: dict):
+        """
+        网络请求响应的处理
+        Args:
+            data:
+                - status: 返回状态码
+                - url: 请求的url
+                - resp: 返回新响应体
+        """
+
+        if data.get("url").endswith("get_device_list") and data.get("status") == 200: # 获取到设备序列号列表，输出
+            self.output_data_text.appendPlainText(data.get("resp"))
+
+            # 如果需要更新从机设备的序列号，进入下面的逻辑
+            if self._is_need_update_device_seq:
+                try:
+                    device_list = list(data.get("resp"))
+                    tmp_seq = self.create_device_seq(device_list)
+
+                    data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14
+                    data = data+self._get_check_sum(data)
+                    self.serialt.send_data(data)
+
+                    self._is_need_update_device_seq = False # 恢复原来的状态
+                    self.device_seq = tmp_seq # 更新设备序列号为新的序列号
+                except Exception as e:
+                    self.log.error(f"运行函数[_web_resp_parse]发生错误：{e}")
+
+    def create_device_seq(self, device_list: list):
+        """返回一个尽可能与device_list不冲突的序列号"""
+        existing_seqs = set()
+        for seq_hex in device_list:
+            try:
+                existing_seqs.add(int(seq_hex, 16))
+            except ValueError:
+                continue
+        
+        # 生成随机序列号，最多尝试100次
+        for _ in range(100):
+            new_seq = random.randint(0, 0xFFFFFFFFFFFF) # 6字节最大值
+            if new_seq not in existing_seqs:
+                self.log.info(f"自动分配序列号：{new_seq:02X}")
+                return new_seq.to_bytes(6, "big")
+        
+        # 100次都冲突的话，返回一个随机值（极不可能发生）
+        return random.randint(1, 0xFFFFFFFFFFFF).to_bytes(6, "big")
+
     def _update_stats(self):
         """更新统计信息 弃用"""
         pass
@@ -708,7 +761,6 @@ class SerialToolWindow(QMainWindow):
 
 # 主程序入口
 def main():
-
 
     """主函数"""
     app = QApplication(sys.argv)

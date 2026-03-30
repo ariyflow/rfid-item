@@ -39,7 +39,7 @@
     <item>
      <widget class="QTabWidget" name="tabMain">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tabSerial">
        <attribute name="title">
@@ -348,9 +348,9 @@
        <attribute name="title">
         <string>感知层通信</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <layout class="QVBoxLayout" name="verticalLayout_11">
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,5">
+         <layout class="QVBoxLayout" name="verticalLayout_10" stretch="1,10">
           <item>
            <widget class="QGroupBox" name="groupBox">
             <property name="title">
@@ -434,60 +434,93 @@
            </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="2,9">
+           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,10">
             <item>
-             <widget class="QGroupBox" name="groupBox_3">
-              <property name="title">
-               <string>从机操作</string>
-              </property>
-              <layout class="QVBoxLayout" name="verticalLayout_6">
-               <item>
-                <layout class="QVBoxLayout" name="verticalLayout_5">
+             <layout class="QVBoxLayout" name="verticalLayout_9">
+              <item>
+               <widget class="QGroupBox" name="groupBox_3">
+                <property name="title">
+                 <string>从机操作</string>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_6">
                  <item>
-                  <widget class="QLineEdit" name="stcope_input_edit">
-                   <property name="placeholderText">
-                    <string>输入6字节序列号</string>
-                   </property>
-                  </widget>
+                  <layout class="QVBoxLayout" name="verticalLayout_5">
+                   <item>
+                    <widget class="QLineEdit" name="stcope_input_edit">
+                     <property name="placeholderText">
+                      <string>输入6字节序列号</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="stcope_setseq_btn">
+                     <property name="text">
+                      <string>设置序列号</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="stcope_getseq_btn">
+                     <property name="text">
+                      <string>获取序列号</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="verticalSpacer_2">
+                     <property name="orientation">
+                      <enum>Qt::Orientation::Vertical</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>20</width>
+                       <height>40</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
                  </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="groupBox_4">
+                <property name="title">
+                 <string>应用层操作</string>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_3">
                  <item>
-                  <widget class="QPushButton" name="stcope_setseq_btn">
+                  <widget class="QPushButton" name="get_device_list_btn">
                    <property name="text">
-                    <string>设置序列号</string>
+                    <string>获取设备列表</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QPushButton" name="stcope_getseq_btn">
-                   <property name="text">
-                    <string>获取序列号</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="verticalSpacer_2">
+                  <spacer name="verticalSpacer_3">
                    <property name="orientation">
                     <enum>Qt::Orientation::Vertical</enum>
                    </property>
                    <property name="sizeHint" stdset="0">
                     <size>
                      <width>20</width>
-                     <height>40</height>
+                     <height>198</height>
                     </size>
                    </property>
                   </spacer>
                  </item>
                 </layout>
-               </item>
-              </layout>
-             </widget>
+               </widget>
+              </item>
+             </layout>
             </item>
             <item>
              <widget class="QGroupBox" name="groupBox_2">
               <property name="title">
                <string>输出区</string>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_3">
+              <layout class="QVBoxLayout" name="verticalLayout_7">
                <item>
                 <widget class="QPlainTextEdit" name="output_data_text">
                  <property name="sizePolicy">

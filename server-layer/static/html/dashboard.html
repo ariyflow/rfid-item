@@ -4,43 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { display: flex; min-height: 100vh; font-family: sans-serif; }
+        
+        .sidebar {
+            width: 200px;
+            background: #2c3e50;
+            color: #fff;
+            padding: 20px 0;
+        }
+        
+        .sidebar h2 { padding: 0 20px 20px; border-bottom: 1px solid #34495e; }
+        
+        .sidebar-menu li {
+            padding: 12px 20px;
+            cursor: pointer;
+        }
+        
+        .sidebar-menu li:hover { background: #34495e; }
+        .sidebar-menu li.active { background: #3498db; }
+        
+        .main-content { flex: 1; padding: 20px; background: #f5f5f5; }
+        
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+    </style>
 </head>
 <body>
-    <div class="main-container">
-        <div class="workspace">
-            <label>删除某条数据：</label>
-            <input type="number" id="numInput" placeholder="输入整数">
-            <button id="outputBtn">删除</button>
+    <aside class="sidebar">
+        <h2>菜单</h2>
+        <ul class="sidebar-menu">
+            <li class="active" data-target="delete-section">设备管理</li>
+            <li data-target="settings-section">数据管理</li>a
+            <li data-target="about-section">关于</li>
+        </ul>
+    </aside>
 
-            <div id="output"></div>
-        </div>
-    </div>
+    <main class="main-content">
+        <section id="delete-section" class="content-section active">
+            
+        </section>
+
+        <section id="settings-section" class="content-section">
+            <p>设置功能开发中...</p>
+        </section>
+        
+        <section id="about-section" class="content-section">
+            <p>关于内容...</p>
+        </section>
+    </main>
 
     <script>
-
-        async function remove_sensor_data_by_id(_id) {
-            try {
-                const response = await fetch('/api/remove_sensor_data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: _id })
-                });
-                const data = await response.json();
+        // 侧边栏切换
+        document.querySelectorAll('.sidebar-menu li').forEach(item => {
+            item.addEventListener('click', function() {
+                // 移除所有 active
+                document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
                 
-                const output = document.getElementById('output');
-                if (data.rcv_status === 'success') {
-                    output.textContent = `删除成功，ID: ${_id}`;
-                } else {
-                    output.textContent = `删除失败: ${data.rcv_status}`;
-                }
-            } catch (error) {
-                document.getElementById('output').textContent = '请求出错: ' + error;
-            }
-        }
-
-        document.getElementById('outputBtn').addEventListener('click', function() {
-            const value = parseInt(document.getElementById('numInput').value);
-            remove_sensor_data_by_id(value);
+                // 添加当前 active
+                this.classList.add('active');
+                document.getElementById(this.dataset.target).classList.add('active');
+            });
         });
     </script>
 </body>

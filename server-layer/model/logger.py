@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 
 """
 日志管理模块
@@ -8,7 +9,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # 项目根目录
 SAVE_LOG_PATH = os.path.join(BASE_DIR, "log") # 日志保存的路径
 
-LOG_FILE_NAME = "server.log" # 日志的文件名
+LOG_FILE_NAME = datetime.now().strftime("%Y_%m_%d")+".log" # 日志的文件名
 
 class myLogger(logging.Logger):
     def __init__(self):

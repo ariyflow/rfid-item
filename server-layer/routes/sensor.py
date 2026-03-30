@@ -5,6 +5,7 @@ from model.logger import log
 
 sensor_route = Blueprint("sensor", __name__, url_prefix="/api")
 
+"""传感器数据上报"""
 @sensor_route.route("/submit_sensor_data", methods=["POST"])
 def submit_sensor_data_handler():
     data = request.get_json()
@@ -17,18 +18,18 @@ def submit_sensor_data_handler():
 
     return make_response(jsonify(data), 200)
 
-
+"""移除传感器数据"""
 @sensor_route.route("/remove_sensor_data", methods=["POST"])
 def remove_sensor_data_handler():
     data = request.get_json()
 
-    status = db.remove_sensor_data(data.get("id"))
+    status = db.remove_sensor_data(data.get("id"), data.get("device_seq"))
 
     data["rcv_status"] = status.get("status")
     data["rcv_time"] = str(time.time())
     return make_response(jsonify(data), 200 if data["rcv_status"] == "success" else 400)
 
-
+"""获取传感器数据"""
 @sensor_route.route("/fetch_sensor_data", methods=["POST"])
 def fetch_sensor_data_handler():
     data = request.get_json()
