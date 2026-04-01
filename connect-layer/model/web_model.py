@@ -96,6 +96,11 @@ class webModel(QObject):
         }
 
         self.webt.add_request(url, "POST", data)
+    
+    def fetch_device_sequence(self):
+        """请求分配序列号"""
+        url = self.par.base_url+"/api/distribute_seq"
+        self.webt.add_request(url, "POST", None)
 
     def get_device_list(self):
         """获取设备列表"""

@@ -40,7 +40,12 @@ import time
 # resp.close()
 
 """get_device_list测试"""
-data = {}
-resp = requests.post("http://127.0.0.1:5353/api/get_device_list", json=data)
+# data = {}
+# resp = requests.post("http://127.0.0.1:5353/api/get_device_list", json=data)
+# print(resp.text)
+# resp.close()
+
+"""/api/distribute_seq测试"""
+resp = requests.post("http://127.0.0.1:5353/api/distribute_seq")
 print(resp.text)
 resp.close()

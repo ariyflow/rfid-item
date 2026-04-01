@@ -75,7 +75,7 @@ class SerialToolWindow(QMainWindow):
         self.device_seq = b"" # 连接串口后，获取的设备序列号
         self.token = TOKEN
         self.base_url = BASE_URL
-        self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
+        # self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
         
         # 模块声明
         self.serialt = serialThread(self)
@@ -684,9 +684,12 @@ class SerialToolWindow(QMainWindow):
     
     def check_device_seq(self, seq: bytes):
         """检查从机序列号，如果不正确则进行序列号分配"""
-        if seq == b"\x00"*6: # 设备无序列号，进行分配
-            self._get_device_list_handler() # 更新设备列表
-            self._is_need_update_device_seq = True # 回调中使用，需要进行设备序列号更新
+        if seq == b"\x00"*6: # 设备无序列号，进行
+            self._fetch_device_sequence() # 发送分配序列号的请求
+            # self._get_device_list_handler() # 更新设备列表
+            # self._is_need_update_device_seq = True # 回调中使用，需要进行设备序列号更新
+    def _fetch_device_sequence(self):
+        self.web.fetch_device_sequence()
 
     def _clear_receive(self):
         """清空接收区"""
@@ -711,20 +714,21 @@ class SerialToolWindow(QMainWindow):
         if data.get("url").endswith("get_device_list") and data.get("status") == 200: # type: ignore # 获取到设备序列号列表，输出
             self.output_data_text.appendPlainText(data.get("resp")) # type: ignore
 
+            """4.1 实现逻辑更新，现在获取设备列表后不需要更新序列号"""
             # 如果需要更新从机设备的序列号，进入下面的逻辑
-            if self._is_need_update_device_seq:
-                try:
-                    device_list = list(data.get("resp")) # type: ignore
-                    tmp_seq = self.create_device_seq(device_list)
+            # if self._is_need_update_device_seq:
+            #     try:
+            #         device_list = list(data.get("resp")) # type: ignore
+            #         tmp_seq = self.create_device_seq(device_list)
 
-                    data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14 # type: ignore
-                    data = data+self._get_check_sum(data) # type: ignore
-                    self.serialt.send_data(data) # type: ignore
+            #         data = b"\xaa\x55\x04"+tmp_seq+b"\x00"*14 # type: ignore
+            #         data = data+self._get_check_sum(data) # type: ignore
+            #         self.serialt.send_data(data) # type: ignore
 
-                    self._is_need_update_device_seq = False # 恢复原来的状态
-                    self.device_seq = tmp_seq # 更新设备序列号为新的序列号
-                except Exception as e:
-                    self.log.error(f"运行函数[_web_resp_parse]发生错误：{e}")
+            #         self._is_need_update_device_seq = False # 恢复原来的状态
+            #         self.device_seq = tmp_seq # 更新设备序列号为新的序列号
+            #     except Exception as e:
+            #         self.log.error(f"运行函数[_web_resp_parse]发生错误：{e}")
 
     def create_device_seq(self, device_list: list):
         """返回一个尽可能与device_list不冲突的序列号"""
