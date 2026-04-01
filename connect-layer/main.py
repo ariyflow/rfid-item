@@ -22,6 +22,7 @@ from model.web_model import webModel
 import os
 import random
 import time
+import json
 
 # 常量定义
 
@@ -658,14 +659,18 @@ class SerialToolWindow(QMainWindow):
                 hall = data[8]
                 shake = data[9]
                 
-                self.check_device_seq(self.device_seq) # 获取到传感器数据，准备上报时，检查设备序列号
-                
-                self.submit_sensor_data_handler({
-                    "temperature": temperture,
-                    "light": light,
-                    "hall": hall
-                })
-                self.output_data_text.appendPlainText(f"fetch sensor data(temperatute, light, hall, shake):[{temperture}, {light}, {hall}, {shake}]") # type: ignore
+                if self.device_seq == b"\x00"*6: # 如果当前没有序列号，本次数据丢弃，先要求感知层提供序列号
+                    self._send_fetch_device_seq_handler() # 调用获取设备序列号的函数
+                else:
+
+                    # self.check_device_seq(self.device_seq) # 获取到传感器数据，准备上报时，检查设备序列号
+                    
+                    self.submit_sensor_data_handler({
+                        "temperature": temperture,
+                        "light": light,
+                        "hall": hall
+                    })
+                    self.output_data_text.appendPlainText(f"fetch sensor data(temperatute, light, hall, shake):[{temperture}, {light}, {hall}, {shake}]") # type: ignore
             elif command == 0x04: # 返回写入序列号的结果
                 self.log.info(f"收到写入序列号后返回的数据帧：{self._show_btyes_with_space(data)}")
                 self.output_data_text.appendPlainText(f"set seq success: {self._show_btyes_with_space(data[4:10])}")
@@ -683,7 +688,9 @@ class SerialToolWindow(QMainWindow):
                 self.log.warning(f"接收到未编码的指令：{command}")
     
     def check_device_seq(self, seq: bytes):
-        """检查从机序列号，如果不正确则进行序列号分配"""
+        """检查从机序列号，如果不正确则进行序列号分配
+        这个函数是分配序列号的！不要拿来检查序列号
+        """
         if seq == b"\x00"*6: # 设备无序列号，进行
             self._fetch_device_sequence() # 发送分配序列号的请求
             # self._get_device_list_handler() # 更新设备列表
@@ -729,6 +736,19 @@ class SerialToolWindow(QMainWindow):
             #         self.device_seq = tmp_seq # 更新设备序列号为新的序列号
             #     except Exception as e:
             #         self.log.error(f"运行函数[_web_resp_parse]发生错误：{e}")
+        elif data.get("url").endswith("distribute_seq") and data.get("status") == 200:
+            try:
+                msg = json.loads(data.get("resp")).get("device_seq")
+                self.log.info(f"收到应用层分配的序列号：{msg}")
+
+                msg = b"\xaa\x55\x04"+bytes.fromhex(msg)+b"\x00"*14
+                
+                msg = msg+self._get_check_sum(msg)
+                self.log.debug(f"发送设置从机序列号的数据帧：{self._show_btyes_with_space(msg)}")
+                
+                self.serialt.send_data(msg)
+            except Exception as e:
+                self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
     def create_device_seq(self, device_list: list):
         """返回一个尽可能与device_list不冲突的序列号"""

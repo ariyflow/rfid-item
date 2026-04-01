@@ -109,11 +109,10 @@ class webModel(QObject):
 
     def resp_parse(self, data: dict):
         """发送的请求得到响应后做处理"""
-        self.par.log.debug(f"获取到应用层响应：{data.get('status')}")
+        self.par.log.debug(f"获取到应用层响应：{data}")
 
-        if data.get("url").endswith("get_device_list"):
-            # self.par.log.debug(f"获取到设备列表：{data.get('resp')}")
-            self.resp_submit.emit(data)
+        # self.par.log.debug(f"获取到设备列表：{data.get('resp')}")
+        self.resp_submit.emit(data) # 向主线程返回响应
 
     def quit_web_session(self):
         self.webt.quit_handler()
