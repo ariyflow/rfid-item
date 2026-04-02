@@ -715,7 +715,7 @@ class SerialToolWindow(QMainWindow):
             data:
                 - status: 返回状态码
                 - url: 请求的url
-                - resp: 返回新响应体
+                - resp: 返回响应体
         """
 
         if data.get("url").endswith("get_device_list") and data.get("status") == 200: # type: ignore # 获取到设备序列号列表，输出
@@ -751,7 +751,10 @@ class SerialToolWindow(QMainWindow):
                 self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
     def create_device_seq(self, device_list: list):
-        """返回一个尽可能与device_list不冲突的序列号"""
+        """
+        返回一个尽可能与device_list不冲突的序列号 函数已弃用
+        补充：这是最开始的逻辑，现在将这一过程放在应用层
+        """
         existing_seqs = set()
         for seq_hex in device_list:
             try:
@@ -778,7 +781,7 @@ class SerialToolWindow(QMainWindow):
     
     # 窗口事件
     def closeEvent(self, event):
-        """窗口关闭事件"""
+        """窗口关闭事件 弃用"""
         if self._is_connected:
             self.log.info("正在关闭应用程序...")
             self._disconnect()
