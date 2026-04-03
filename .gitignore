@@ -4,6 +4,7 @@
 *.log
 *.bak
 *.rar
+*.drawio
 
 # ignore directory
 **/.venv/
@@ -11,3 +12,10 @@
 **/database/
 **/.vscode/
 test02/
+docs/框架图/*
+docs/*.md
+
+# not ignore file
+
+!docs/框架图/系统整体框架.drawio.pdf
+!docs/整体设计.md
