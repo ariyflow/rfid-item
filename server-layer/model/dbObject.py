@@ -200,6 +200,95 @@ class dbObject:
         except Exception as e:
             self.par.error(f"运行函数[get_device_list]时发生错误：{e}")
             return []
+    def add_device(self, seq: str, timestamp: str = None) -> dict:
+        """添加设备并创建数据表
+        Args:
+            seq: 设备序列号
+            timestamp: 创建时间戳（可选）
+        Returns:
+            dict: 包含添加状态的字典
+        """
+        if not seq:
+            return {"status": "error", "message": "缺少设备序列号参数"}
+
+        table_name = f"{SENSOR_TABLE_PREFIX}{seq}"
+
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 检查设备是否已存在
+            self.cur.execute("SELECT device_seq FROM devices WHERE device_seq = ?", (seq,))
+            if self.cur.fetchone():
+                self.cur.close()
+                self.conn.close()
+                return {"status": "exist", "message": f"设备 {seq} 已存在"}
+
+            # 创建设备专属表
+            self.cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table_name}(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    temperature FLOAT,
+                    light INT,
+                    hall INT,
+                    timestamp TEXT
+                )
+            """)
+            self.par.debug(f"创建设备数据表：{table_name}")
+
+            # 在 devices 表中添加设备记录
+            self.cur.execute(
+                "INSERT INTO devices (device_seq, created_at) VALUES (?, ?)",
+                (seq, timestamp)
+            )
+            self.conn.commit()
+            self.par.info(f"添加设备 {seq} 及其数据表成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "添加成功"}
+        except Exception as e:
+            self.par.error(f"运行函数 [add_device] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+    
+    def remove_device(self, seq: str) -> dict:
+        """删除设备及其数据表
+        Args:
+            seq: 设备序列号
+        Returns:
+            dict: 包含删除状态的字典
+        """
+        if not seq:
+            return {"status": "error", "message": "缺少设备序列号参数"}
+
+        table_name = f"{SENSOR_TABLE_PREFIX}{seq}"
+
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 检查设备是否存在
+            self.cur.execute("SELECT device_seq FROM devices WHERE device_seq = ?", (seq,))
+            if not self.cur.fetchone():
+                self.cur.close()
+                self.conn.close()
+                return {"status": "not_found", "message": f"设备 {seq} 不存在"}
+
+            # 删除设备数据表
+            self.cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+            self.par.debug(f"删除设备数据表：{table_name}")
+
+            # 从设备表中删除设备记录
+            self.cur.execute("DELETE FROM devices WHERE device_seq = ?", (seq,))
+            self.conn.commit()
+            self.par.info(f"删除设备 {seq} 及其数据表成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "delete success"}
+        except Exception as e:
+            self.par.error(f"运行函数[remove_device]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
 
     def quit_handler(self):
         """数据库退出"""
@@ -216,3 +305,4 @@ db = dbObject(log)
 
 if __name__ == "__main__":
     print(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+    
