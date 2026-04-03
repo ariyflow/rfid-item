@@ -46,6 +46,29 @@ import time
 # resp.close()
 
 """/api/distribute_seq测试"""
-resp = requests.post("http://127.0.0.1:5353/api/distribute_seq")
-print(resp.text)
+# resp = requests.post("http://127.0.0.1:5353/api/distribute_seq")
+# print(resp.text)
+# resp.close()
+
+"""/api/add_device测试"""
+# import secrets
+# random_seq = secrets.token_hex(6)
+# print(f"random_seq: {random_seq}")
+
+# data = {
+#     "device_seq": random_seq,
+#     "timestamp": str(time.time())
+# }
+
+# resp = requests.post("http://127.0.0.1:5353/api/add_device", json=data)
+# print(resp.json())
+# resp.close()
+
+"""/api/remove_device测试"""
+import secrets
+data = {
+    "device_seq": secrets.token_hex(6)
+}
+resp = requests.post("http://127.0.0.1:5353/api/remove_device", json=data)
+print(resp.json())
 resp.close()
