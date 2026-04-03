@@ -3,7 +3,7 @@ from model import db
 import time
 import secrets
 
-functional = Blueprint("functional", __name__, url_prefix="/api")
+functional_routes = Blueprint("functional", __name__, url_prefix="/api")
 
 def generate_device_seq(existing_devices: list) -> str:
     """生成不与现有设备冲突的12位十六进制序列号"""
@@ -14,7 +14,7 @@ def generate_device_seq(existing_devices: list) -> str:
             return new_seq
     raise Exception("无法生成唯一的设备序列号，请稍后重试")
 
-@functional.route("/distribute_seq", methods=["POST"])
+@functional_routes.route("/distribute_seq", methods=["POST"])
 def distribute_seq_handler():
     device_list = db.get_device_list()
     try:

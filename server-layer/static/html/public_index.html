@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID 传感器数据查询</title>
+    <link rel="stylesheet" href="/static/css/public_index.css">
+</head>
+<body>
+    <div class="container">
+        <h1>传感器数据查询</h1>
+
+        <!-- 设备列表卡片 -->
+        <div class="card">
+            <h2 class="card-title">
+                设备列表
+                <button class="btn btn-refresh" onclick="loadDeviceList()">刷新</button>
+            </h2>
+            <div id="deviceList" class="device-list">
+                <div class="loading">加载中</div>
+            </div>
+        </div>
+
+        <!-- 传感器数据卡片 -->
+        <div class="card">
+            <h2 class="card-title">
+                传感器数据
+                <span id="selectedDevice" style="font-size: 0.8em; color: #667eea; margin-left: 10px;"></span>
+            </h2>
+            <div id="sensorData">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p>请从上方选择一个设备查看传感器数据</p>
+                </div>
+            </div>
+            <div id="pagination" class="pagination" style="display: none;">
+                <button class="btn" onclick="prevPage()" id="prevBtn">⬅ 上一页</button>
+                <span id="pageInfo">第 1 页</span>
+                <button class="btn" onclick="nextPage()" id="nextBtn">下一页 ➡</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/public_index.js"></script>
+</body>
+</html>
