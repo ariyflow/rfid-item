@@ -1,9 +1,7 @@
 from flask import Flask, Blueprint, request, make_response, jsonify, send_from_directory
 from pathlib import Path
 import os
-
-ROOT_DIR = Path(__file__).parent.parent
-STATIC_DIR = "static" # 存放静态文件的目录
+from .settings import *
 
 public_routes = Blueprint("public", __name__, url_prefix="/public")
 
