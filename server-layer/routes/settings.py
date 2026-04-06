@@ -1,4 +1,5 @@
 """本文件夹存放所有和路由相关的设置"""
+
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent # 项目的根目录

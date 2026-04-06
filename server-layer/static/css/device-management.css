@@ -1,0 +1,280 @@
+/* 设备管理页面样式 */
+.device-management-container {
+    padding: 20px;
+}
+
+.device-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.device-list-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.add-device-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.add-device-btn:hover {
+    background-color: #45a049;
+}
+
+.device-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.device-table th, .device-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.device-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.delete-device-btn {
+    background-color: #f44336;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.delete-device-btn:hover {
+    background-color: #da190b;
+}
+
+.view-data-btn {
+    background-color: #2196F3;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+.view-data-btn:hover {
+    background-color: #0b7dda;
+}
+
+.confirmation-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.confirmation-modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    border-radius: 4px;
+    width: 300px;
+    text-align: center;
+}
+
+.modal-buttons {
+    margin-top: 20px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    margin: 0 5px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal-btn-confirm {
+    background-color: #f44336;
+    color: white;
+}
+
+.modal-btn-cancel {
+    background-color: #ccc;
+    color: black;
+}
+
+.sensor-data-container {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sensor-data-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-to-devices-btn {
+    background-color: #9e9e9e;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.sensor-data-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.sensor-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.sensor-data-table th, .sensor-data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.sensor-data-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.select-all-checkbox, .select-checkbox {
+    width: 20px;
+    height: 20px;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.pagination-btn {
+    background-color: #2196F3;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 5px;
+    font-size: 14px;
+}
+
+.pagination-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.page-number {
+    margin: 0 10px;
+    padding: 8px 12px;
+    background-color: #f2f2f2;
+    border-radius: 4px;
+}
+
+.bulk-actions {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-selection-btn {
+    background-color: #ff9800;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.delete-selected-btn {
+    background-color: #f44336;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.delete-selected-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.selected-count {
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+.add-device-form {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.add-device-input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.add-device-submit-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.cancel-add-device-btn {
+    background-color: #9e9e9e;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+}

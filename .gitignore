@@ -5,6 +5,7 @@
 *.bak
 *.rar
 *.drawio
+.codex
 
 # ignore directory
 **/.venv/

@@ -1,3 +1,5 @@
+"""API 数据库相关"""
+
 from flask import Blueprint, make_response, jsonify, request
 from model import db
 

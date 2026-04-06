@@ -1,3 +1,5 @@
+"""API 功能性的路由"""
+
 from flask import Blueprint, make_response, jsonify
 from model import db
 import time

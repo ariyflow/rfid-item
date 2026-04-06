@@ -3,32 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Dashboard - RFID Item Management</title>
 
+    <link rel="stylesheet" href="/static/css/device-management.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body { display: flex; min-height: 100vh; font-family: sans-serif; }
-        
+
         .sidebar {
             width: 200px;
             background: #2c3e50;
             color: #fff;
             padding: 20px 0;
         }
-        
+
         .sidebar h2 { padding: 0 20px 20px; border-bottom: 1px solid #34495e; }
-        
+
         .sidebar-menu li {
             padding: 12px 20px;
             cursor: pointer;
         }
-        
+
         .sidebar-menu li:hover { background: #34495e; }
         .sidebar-menu li.active { background: #3498db; }
-        
+
         .main-content { flex: 1; padding: 20px; background: #f5f5f5; }
-        
+
         .content-section { display: none; }
         .content-section.active { display: block; }
     </style>
@@ -38,20 +39,24 @@
         <h2>菜单</h2>
         <ul class="sidebar-menu">
             <li class="active" data-target="delete-section">设备管理</li>
-            <li data-target="settings-section">数据管理</li>a
+            <li data-target="settings-section">数据管理</li>
             <li data-target="about-section">关于</li>
         </ul>
     </aside>
 
     <main class="main-content">
         <section id="delete-section" class="content-section active">
-            
+            <div class="device-management-container">
+                <div class="device-list-container">
+                    
+                </div>
+            </div>
         </section>
 
         <section id="settings-section" class="content-section">
             <p>设置功能开发中...</p>
         </section>
-        
+
         <section id="about-section" class="content-section">
             <p>关于内容...</p>
         </section>
@@ -64,12 +69,13 @@
                 // 移除所有 active
                 document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
                 document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-                
+
                 // 添加当前 active
                 this.classList.add('active');
                 document.getElementById(this.dataset.target).classList.add('active');
             });
         });
     </script>
+    <script src="/static/js/device-management.js"></script>
 </body>
 </html>

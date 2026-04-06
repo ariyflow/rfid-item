@@ -1,3 +1,5 @@
+"""public子目录的路由"""
+
 from flask import Flask, Blueprint, request, make_response, jsonify, send_from_directory
 from pathlib import Path
 import os

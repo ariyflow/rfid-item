@@ -1,3 +1,5 @@
+"""API 传感器相关的路由"""
+
 from flask import Blueprint, request, make_response, jsonify
 import time
 from model.dbObject import db
