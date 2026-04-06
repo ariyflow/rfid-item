@@ -23,6 +23,7 @@ import os
 import random
 import time
 import json
+import math
 
 # 常量定义
 
@@ -287,6 +288,16 @@ class SerialToolWindow(QMainWindow):
             con ^= b
         tmp += con.to_bytes(1, "big")
         self.serialt.send_data(tmp)
+
+    def adcToTem(self, tem: int):
+        """温度模数转换"""
+        try:
+            vccx = tem/1000
+            lnx = math.log(vccx/(1-vccx))
+            t = 1/((lnx/3950)+(1/298.15)) - 273.15
+            return round(t, 1)
+        except:
+            return 25.0
         
     def _get_check_sum(self, data: bytes) -> bytes:
         """
@@ -655,6 +666,7 @@ class SerialToolWindow(QMainWindow):
             elif command == 0x03: # 返回传感器数据
                 # aa 55 08 03 t1 t0 i1 i0 hall shake xx
                 temperture = int.from_bytes(data[4:6], byteorder="big")
+                temperture = self.adcToTem(temperture)
                 light = int.from_bytes(data[6:8], byteorder="big")
                 hall = data[8]
                 shake = data[9]
