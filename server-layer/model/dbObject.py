@@ -1,6 +1,8 @@
 import sqlite3 as sl
 import os
+import hashlib
 from model.logger import log
+import time
 
 """
 数据库管理模块
@@ -48,6 +50,8 @@ class dbObject:
         self.conn.commit()
         self.cur.close()
         self.conn.close()
+
+        self.check_auth_table() # 检查用户表是否存在
 
     def insert_sensor_data(self, data: dict):
         """插入传感器数据
@@ -288,6 +292,103 @@ class dbObject:
             return {"status": "success", "message": "delete success"}
         except Exception as e:
             self.par.error(f"运行函数[remove_device]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+
+    def check_auth_table(self):
+        self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+        self.cur = self.conn.cursor()
+
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS auth(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+        """)
+        self.conn.commit()
+
+        self.cur.close()
+        self.conn.close()
+        
+    def add_auth(self, username: str, password: str) -> dict:
+        """添加用户
+        Args:
+            username: 用户名
+            password: 密码（明文，会自动进行哈希处理）
+        Returns:
+            dict: 包含添加状态的字典
+        """
+        if not username:
+            return {"status": "error", "message": "缺少用户名参数"}
+        
+        if not password:
+            return {"status": "error", "message": "缺少密码参数"}
+        
+        # 确保 auth 表存在
+        # self.check_auth_table()
+        timestamp = str(time.time())
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 检查用户是否已存在
+            self.cur.execute("SELECT username FROM auth WHERE username = ?", (username,))
+            if self.cur.fetchone():
+                self.cur.close()
+                self.conn.close()
+                return {"status": "exist", "message": f"用户 {username} 已存在"}
+
+            # 对密码进行哈希处理
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+            # 插入用户记录
+            self.cur.execute(
+                "INSERT INTO auth (username, password_hash, timestamp) VALUES (?, ?, ?)",
+                (username, password_hash, timestamp)
+            )
+            self.conn.commit()
+            self.par.info(f"添加用户 {username} 成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "添加成功"}
+        except Exception as e:
+            self.par.error(f"运行函数 [add_auth] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def remove_auth(self, username: str) -> dict:
+        """移除用户
+        Args:
+            username: 用户名
+        Returns:
+            dict: 包含删除状态的字典
+        """
+        if not username:
+            return {"status": "error", "message": "缺少用户名参数"}
+
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 检查用户是否存在
+            self.cur.execute("SELECT username FROM auth WHERE username = ?", (username,))
+            if not self.cur.fetchone():
+                self.cur.close()
+                self.conn.close()
+                return {"status": "not_found", "message": f"用户 {username} 不存在"}
+
+            # 删除用户记录
+            self.cur.execute("DELETE FROM auth WHERE username = ?", (username,))
+            self.conn.commit()
+            self.par.info(f"删除用户 {username} 成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "删除成功"}
+        except Exception as e:
+            self.par.error(f"运行函数 [remove_auth] 时发生错误：{e}")
             return {"status": "error", "message": str(e)}
 
     def quit_handler(self):

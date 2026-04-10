@@ -2,11 +2,12 @@ from flask import Flask, make_response, request, jsonify, send_from_directory
 import time
 import json
 from model import db, log
-from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes
+from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes, auth_routes
 import sys
 
 
 app = Flask(__name__)
+
 app.register_blueprint(sensor_route)
 app.register_blueprint(database_bp)
 app.register_blueprint(functional_routes)
