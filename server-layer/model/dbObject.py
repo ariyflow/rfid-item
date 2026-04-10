@@ -390,6 +390,40 @@ class dbObject:
         except Exception as e:
             self.par.error(f"运行函数 [remove_auth] 时发生错误：{e}")
             return {"status": "error", "message": str(e)}
+        
+    def get_auth_pwd(self, username: str) -> dict:
+        """获取用户的密码哈希
+        Args:
+            username: 用户名
+        Returns:
+            dict: 包含密码哈希的字典，格式：{"status": "success", "password_hash": "..."}
+                  或错误信息：{"status": "not_found", "message": "..."}
+        """
+        if not username:
+            return {"status": "error", "message": "缺少用户名参数"}
+
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 查询用户的密码哈希
+            self.cur.execute("SELECT password_hash FROM auth WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+
+            if result is None:
+                self.cur.close()
+                self.conn.close()
+                return {"status": "not_found", "message": f"用户 {username} 不存在"}
+
+            password_hash = result[0]
+            self.par.info(f"获取用户 {username} 的密码哈希成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "password_hash": password_hash}
+        except Exception as e:
+            self.par.error(f"运行函数 [get_auth_pwd] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
 
     def quit_handler(self):
         """数据库退出"""
