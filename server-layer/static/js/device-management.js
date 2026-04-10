@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 device_seq: deviceSeq,
-                timestamp: new Date().toISOString(),
+                timestamp: String(Date.now() / 1000),
             }),
         });
 

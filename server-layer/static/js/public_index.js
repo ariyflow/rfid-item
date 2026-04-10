@@ -113,7 +113,7 @@ async function loadSensorData() {
         if (!data || data.length === 0) {
             sensorDataEl.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-state-icon">📉</div>
+                    <div class="empty-state-icon"></div>
                     <p>该设备暂无传感器数据</p>
                 </div>
             `;
