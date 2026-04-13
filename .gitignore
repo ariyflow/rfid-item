@@ -6,12 +6,14 @@
 *.rar
 *.drawio
 .codex
+**/CLAUDE.md
 
 # ignore directory
 **/.venv/
 **/__pycache__/
 **/database/
 **/.vscode/
+.ruff_cache/
 test02/
 docs/框架图/*
 docs/*.md
