@@ -16,6 +16,8 @@ test02/
 docs/框架图/*
 docs/*.md
 **/.qwen/
+**/.claude/
+**/.opencode/
 
 # not ignore file
 

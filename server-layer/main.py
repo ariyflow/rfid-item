@@ -2,7 +2,7 @@ from flask import Flask, make_response, request, jsonify, send_from_directory
 import time
 import json
 from model import db, log
-from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes, auth_routes
+from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes
 import sys
 
 
