@@ -42,8 +42,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function showLoginModal() {
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.style.display = 'flex';
+    }
+
     async function getDeviceList() {
         const response = await fetch('/api/get_device_list', { method: 'GET' });
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
         const payload = await parseJsonSafe(response);
         if (!response.ok) {
             throw new Error(payload?.message || '获取设备列表失败');
@@ -63,9 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const response = await fetch('/dashboard/fetch_analysis_data', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
+
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
 
         const payload = await parseJsonSafe(response);
         if (!response.ok) {
@@ -368,6 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initAnalysisView() {
+        if (!document.getElementById('device-selector')) return;
+
         populateDeviceSelector();
 
         const deviceSelector = document.getElementById('device-selector');
@@ -430,5 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    initAnalysisView();
+    window.initDataAnalysis = function() {
+        initAnalysisView();
+    };
 });

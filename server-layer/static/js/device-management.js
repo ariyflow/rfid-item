@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hasNextPage: false,
         selectedRows: new Set(),
         selectionMode: false,
+        ready: false,
     };
 
     const deviceManagementSection = document.getElementById('delete-section');
@@ -34,8 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function showLoginModal() {
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.style.display = 'flex';
+    }
+
     async function getDeviceList() {
         const response = await fetch('/api/get_device_list', { method: 'GET' });
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
         const payload = await parseJsonSafe(response);
 
         if (!response.ok) {
@@ -56,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const payload = await parseJsonSafe(response);
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
         if (!response.ok || payload?.status !== 'success') {
             throw new Error(payload?.message || '添加设备失败');
         }
@@ -69,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const payload = await parseJsonSafe(response);
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
         if (!response.ok || payload?.status !== 'success') {
             throw new Error(payload?.message || '删除设备失败');
         }
@@ -88,11 +106,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const payload = await parseJsonSafe(response);
 
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
+
         if (response.ok && Array.isArray(payload)) {
             return payload;
         }
 
-        // 当前后端在“无数据”时返回 400 + {}，这里按空数据处理，避免误报错误。
+        // 当前后端在"无数据"时返回 400 + {}，这里按空数据处理，避免误报错误。
         if (response.status === 400 && payload && !Array.isArray(payload)) {
             return [];
         }
@@ -108,6 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const payload = await parseJsonSafe(response);
+        if (response.status === 401) {
+            showLoginModal();
+            throw new Error('Login required');
+        }
         if (!response.ok || payload?.rcv_status !== 'success') {
             throw new Error(payload?.message || '删除传感器数据失败');
         }
@@ -323,6 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadDeviceListView() {
+        if (!state.ready) return;
+
         state.currentDeviceSeq = null;
         state.currentPage = 1;
         state.hasNextPage = false;
@@ -619,6 +648,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadSensorData(page) {
+        if (!state.ready) return;
+
         const targetPage = Math.max(1, page);
 
         try {
@@ -664,5 +695,9 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadSensorData(1);
     }
 
-    loadDeviceListView();
+    // Called by the inline script in dashboard.html after auth is confirmed
+    window.initDeviceManagement = function() {
+        state.ready = true;
+        loadDeviceListView();
+    };
 });

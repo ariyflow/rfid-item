@@ -1,11 +1,21 @@
 """API 传感器相关的路由"""
 
-from flask import Blueprint, request, make_response, jsonify
+from flask import Blueprint, request, make_response, jsonify, session
+from functools import wraps
 import time
 from model.dbObject import db
 from model.logger import log
 
 sensor_route = Blueprint("sensor", __name__, url_prefix="/api")
+
+
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "username" not in session:
+            return make_response(jsonify({"status": "error", "message": "Login required"}), 401)
+        return f(*args, **kwargs)
+    return decorated
 
 """传感器数据上报"""
 @sensor_route.route("/submit_sensor_data", methods=["POST"])
@@ -22,6 +32,7 @@ def submit_sensor_data_handler():
 
 """移除传感器数据"""
 @sensor_route.route("/remove_sensor_data", methods=["POST"])
+@require_auth
 def remove_sensor_data_handler():
     data = request.get_json()
 

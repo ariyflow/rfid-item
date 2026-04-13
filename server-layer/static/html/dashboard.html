@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="/static/css/device-management.css">
     <link rel="stylesheet" href="/static/css/data-analysis.css">
+    <link rel="stylesheet" href="/static/css/auth.css">
     <script src="/static/js/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,6 +45,10 @@
             <li data-target="settings-section">数据分析</li>
             <li data-target="about-section">关于</li>
         </ul>
+        <div style="padding: 20px; border-top: 1px solid #34495e; margin-top: auto;">
+            <span id="current-user" style="font-size: 12px; color: #bdc3c7;"></span>
+            <button id="logout-btn" style="display: none; width: 100%; margin-top: 8px; padding: 8px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">退出登录</button>
+        </div>
     </aside>
 
     <main class="main-content">
@@ -125,6 +130,20 @@
         </section>
     </main>
 
+    <!-- Login Modal -->
+    <div id="login-modal" class="login-modal">
+        <div class="login-modal-content">
+            <h2>登录</h2>
+            <p id="login-error" style="color: red; display: none; margin-bottom: 10px;"></p>
+            <form id="login-form">
+                <input type="text" id="login-username" placeholder="用户名" required>
+                <input type="password" id="login-password" placeholder="密码" required>
+                <button type="submit">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
     <script>
         // 侧边栏切换
         document.querySelectorAll('.sidebar-menu li').forEach(item => {
@@ -138,6 +157,56 @@
                 document.getElementById(this.dataset.target).classList.add('active');
             });
         });
+
+        // Auth initialization
+        (async function initAuth() {
+            const modal = document.getElementById('login-modal');
+            const logoutBtn = document.getElementById('logout-btn');
+            const currentUser = document.getElementById('current-user');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+
+            const { authenticated, username } = await checkAuth();
+
+            if (authenticated) {
+                modal.style.display = 'none';
+                logoutBtn.style.display = 'block';
+                currentUser.textContent = username || '';
+                // Only initialize dashboard features after confirmed auth
+                window.initDeviceManagement();
+                window.initDataAnalysis();
+            } else {
+                modal.style.display = 'flex';
+                logoutBtn.style.display = 'none';
+            }
+
+            // Handle login form submission
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const u = document.getElementById('login-username').value.trim();
+                const p = document.getElementById('login-password').value;
+                loginError.style.display = 'none';
+
+                try {
+                    await login(u, p);
+                    modal.style.display = 'none';
+                    logoutBtn.style.display = 'block';
+                    currentUser.textContent = u;
+                    // Initialize dashboard features after successful login
+                    window.initDeviceManagement();
+                    window.initDataAnalysis();
+                } catch (err) {
+                    loginError.textContent = err.message;
+                    loginError.style.display = 'block';
+                }
+            });
+
+            // Handle logout
+            logoutBtn.addEventListener('click', async () => {
+                await logout();
+                window.location.reload();
+            });
+        })();
     </script>
     <script src="/static/js/device-management.js"></script>
     <script src="/static/js/data-analysis.js"></script>
