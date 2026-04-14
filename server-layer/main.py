@@ -30,27 +30,6 @@ def dashboard_handler():
 def test_connect_handler():
     return make_response("ok", 200)
 
-@app.cli.command("create-admin")
-def create_admin():
-    """Create an admin user. Usage: flask create-admin <username> <password>"""
-    import click
-    username = input("Username: ").strip()
-    if not username:
-        print("Username cannot be empty")
-        return
-    password = input("Password: ")
-    if not password:
-        print("Password cannot be empty")
-        return
-
-    result = db.add_auth(username, password)
-    if result["status"] == "success":
-        print(f"Admin user '{username}' created successfully.")
-    elif result["status"] == "exist":
-        print(f"User '{username}' already exists.")
-    else:
-        print(f"Failed to create user: {result.get('message')}")
-
 if __name__ == "__main__":
     log.info("程序开始运行")
     app.run("127.0.0.1", port=5353, debug=True)
