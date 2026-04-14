@@ -130,20 +130,6 @@
         </section>
     </main>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="login-modal">
-        <div class="login-modal-content">
-            <h2>登录</h2>
-            <p id="login-error" style="color: red; display: none; margin-bottom: 10px;"></p>
-            <form id="login-form">
-                <input type="text" id="login-username" placeholder="用户名" required>
-                <input type="password" id="login-password" placeholder="密码" required>
-                <button type="submit">登录</button>
-            </form>
-        </div>
-    </div>
-
-    <script src="/static/js/auth.js"></script>
     <script>
         // 侧边栏切换
         document.querySelectorAll('.sidebar-menu li').forEach(item => {
@@ -158,53 +144,29 @@
             });
         });
 
-        // Auth initialization
-        (async function initAuth() {
-            const modal = document.getElementById('login-modal');
+        // 初始化 - 由于服务器端已做身份验证，这里直接初始化
+        (async function init() {
             const logoutBtn = document.getElementById('logout-btn');
             const currentUser = document.getElementById('current-user');
-            const loginForm = document.getElementById('login-form');
-            const loginError = document.getElementById('login-error');
 
-            const { authenticated, username } = await checkAuth();
-
-            if (authenticated) {
-                modal.style.display = 'none';
-                logoutBtn.style.display = 'block';
-                currentUser.textContent = username || '';
-                // Only initialize dashboard features after confirmed auth
-                window.initDeviceManagement();
-                window.initDataAnalysis();
-            } else {
-                modal.style.display = 'flex';
-                logoutBtn.style.display = 'none';
-            }
-
-            // Handle login form submission
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const u = document.getElementById('login-username').value.trim();
-                const p = document.getElementById('login-password').value;
-                loginError.style.display = 'none';
-
-                try {
-                    await login(u, p);
-                    modal.style.display = 'none';
+            // 获取当前用户信息
+            try {
+                const resp = await fetch('/dashboard/check', { credentials: 'include' });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    currentUser.textContent = data.username || '';
                     logoutBtn.style.display = 'block';
-                    currentUser.textContent = u;
-                    // Initialize dashboard features after successful login
-                    window.initDeviceManagement();
-                    window.initDataAnalysis();
-                } catch (err) {
-                    loginError.textContent = err.message;
-                    loginError.style.display = 'block';
                 }
-            });
+            } catch (_) {}
 
-            // Handle logout
+            // 初始化仪表盘功能
+            window.initDeviceManagement();
+            window.initDataAnalysis();
+
+            // 处理退出登录
             logoutBtn.addEventListener('click', async () => {
-                await logout();
-                window.location.reload();
+                await fetch('/admin/logout', { method: 'POST', credentials: 'include' });
+                window.location.href = '/admin';
             });
         })();
     </script>

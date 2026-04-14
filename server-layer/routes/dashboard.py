@@ -12,15 +12,12 @@ dashboard_routes.register_blueprint(analysis_bp)
 
 @dashboard_routes.before_request
 def require_auth():
-    """Protect dashboard API routes. Serve HTML for unauthenticated users too (JS shows login modal)."""
-    # Skip auth check endpoint
+    """Protect all /dashboard routes - redirect to /admin if not authenticated."""
     if request.endpoint == "dashboard.check_session_handler":
         return
 
-    # API routes require auth
-    if "fetch" in request.path or request.is_json:
-        if "username" not in session:
-            return make_response(jsonify({"status": "error", "message": "Login required"}), 401)
+    if "username" not in session:
+        return redirect("/admin")
 
 
 @dashboard_routes.route("/")

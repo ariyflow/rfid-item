@@ -4,7 +4,7 @@ import time
 import json
 from model import db, log
 from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes
-from routes.auth import auth_bp
+from routes.admin import admin_bp
 import sys
 
 
@@ -16,7 +16,7 @@ app.register_blueprint(database_bp) # 设备管理相关
 app.register_blueprint(functional_routes) # 分配序列号
 app.register_blueprint(public_routes) # public界面的相关路由
 app.register_blueprint(dashboard_routes) # dashboard界面的相关路由
-app.register_blueprint(auth_bp) # 身份认证相关
+app.register_blueprint(admin_bp) # admin登录相关
 
 @app.route("/")
 def default_handler():
