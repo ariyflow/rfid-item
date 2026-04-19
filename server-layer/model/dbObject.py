@@ -425,6 +425,72 @@ class dbObject:
             self.par.error(f"运行函数 [get_auth_pwd] 时发生错误：{e}")
             return {"status": "error", "message": str(e)}
 
+    def get_all_auth(self) -> dict:
+        """获取所有用户
+        Returns:
+            dict: 包含用户列表的字典，格式：{"status": "success", "users": [{"id": ..., "username": ..., "timestamp": ...}, ...]}
+        """
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            self.cur.execute("SELECT id, username, timestamp FROM auth ORDER BY id ASC")
+            rows = self.cur.fetchall()
+
+            self.cur.close()
+            self.conn.close()
+
+            users = [{"id": row[0], "username": row[1], "timestamp": row[2]} for row in rows]
+            self.par.info(f"获取所有用户成功，共 {len(users)} 个用户")
+            return {"status": "success", "users": users}
+        except Exception as e:
+            self.par.error(f"运行函数 [get_all_auth] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def update_auth(self, username: str, new_password: str) -> dict:
+        """更新用户密码
+        Args:
+            username: 用户名
+            new_password: 新密码（明文，会自动进行哈希处理）
+        Returns:
+            dict: 包含更新状态的字典
+        """
+        if not username:
+            return {"status": "error", "message": "缺少用户名参数"}
+
+        if not new_password:
+            return {"status": "error", "message": "缺少新密码参数"}
+
+        try:
+            self.conn = sl.connect(os.path.join(DATABASE_LOCATION, DATABASE_NAME))
+            self.cur = self.conn.cursor()
+
+            # 检查用户是否存在
+            self.cur.execute("SELECT username FROM auth WHERE username = ?", (username,))
+            if not self.cur.fetchone():
+                self.cur.close()
+                self.conn.close()
+                return {"status": "not_found", "message": f"用户 {username} 不存在"}
+
+            # 对新密码进行哈希处理
+            password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+            timestamp = str(time.time())
+
+            # 更新用户密码
+            self.cur.execute(
+                "UPDATE auth SET password_hash = ?, timestamp = ? WHERE username = ?",
+                (password_hash, timestamp, username)
+            )
+            self.conn.commit()
+            self.par.info(f"更新用户 {username} 密码成功")
+
+            self.cur.close()
+            self.conn.close()
+            return {"status": "success", "message": "更新成功"}
+        except Exception as e:
+            self.par.error(f"运行函数 [update_auth] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
     def quit_handler(self):
         """数据库退出"""
         # try:
