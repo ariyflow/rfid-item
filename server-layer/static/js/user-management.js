@@ -74,7 +74,9 @@ function createEditModal(username) {
         const close = (result) => {
             if (result) {
                 const passwordInput = document.getElementById('edit-password-input');
-                resolve(passwordInput.value);
+                const value = passwordInput ? passwordInput.value : null;
+                modal.remove();
+                resolve(value);
             } else {
                 modal.remove();
                 resolve(null);
