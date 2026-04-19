@@ -43,6 +43,7 @@
         <ul class="sidebar-menu">
             <li class="active" data-target="delete-section">设备管理</li>
             <li data-target="settings-section">数据分析</li>
+            <li data-target="user-management-section" id="user-management-menu" style="display: none;">用户管理</li>
             <li data-target="about-section">关于</li>
         </ul>
         <div style="padding: 20px; border-top: 1px solid #34495e; margin-top: auto;">
@@ -122,6 +123,33 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section id="user-management-section" class="content-section">
+            <div class="user-management-container">
+                <div class="user-list-header">
+                    <h2>用户管理</h2>
+                    <button class="add-user-btn" id="add-user-btn">添加用户</button>
+                </div>
+                <form class="add-user-form" id="add-user-form">
+                    <h3>添加新用户</h3>
+                    <input type="text" id="new-username-input" class="add-user-input" placeholder="用户名">
+                    <input type="password" id="new-password-input" class="add-user-input" placeholder="密码">
+                    <button type="button" class="add-user-submit-btn" id="add-user-submit-btn">提交</button>
+                    <button type="button" class="cancel-add-user-btn" id="cancel-add-user-btn">取消</button>
+                </form>
+                <table class="user-table" id="user-list-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </section>
 
