@@ -176,6 +176,7 @@
         (async function init() {
             const logoutBtn = document.getElementById('logout-btn');
             const currentUser = document.getElementById('current-user');
+            const userManagementMenu = document.getElementById('user-management-menu');
 
             // 获取当前用户信息
             try {
@@ -184,12 +185,17 @@
                     const data = await resp.json();
                     currentUser.textContent = data.username || '';
                     logoutBtn.style.display = 'block';
+                    // 如果是 root 用户，显示用户管理菜单
+                    if (data.is_root) {
+                        userManagementMenu.style.display = 'block';
+                    }
                 }
             } catch (_) {}
 
             // 初始化仪表盘功能
             window.initDeviceManagement();
             window.initDataAnalysis();
+            window.initUserManagement();
 
             // 处理退出登录
             logoutBtn.addEventListener('click', async () => {
@@ -200,5 +206,6 @@
     </script>
     <script src="/static/js/device-management.js"></script>
     <script src="/static/js/data-analysis.js"></script>
+    <script src="/static/js/user-management.js"></script>
 </body>
 </html>
