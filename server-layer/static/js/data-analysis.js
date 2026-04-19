@@ -48,6 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function getDeviceList() {
+        // 优先使用 device-management.js 已缓存的设备列表
+        if (window._cachedDeviceList) {
+            return window._cachedDeviceList;
+        }
         const response = await fetch('/api/get_device_list', { method: 'GET' });
         if (response.status === 401) {
             showLoginModal();
@@ -57,7 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!response.ok) {
             throw new Error(payload?.message || '获取设备列表失败');
         }
-        return Array.isArray(payload) ? payload : [];
+        const list = Array.isArray(payload) ? payload : [];
+        window._cachedDeviceList = list;
+        return list;
     }
 
     async function fetchAnalysisData(deviceSeq, startTime, endTime, limit) {

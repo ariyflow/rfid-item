@@ -161,8 +161,8 @@
                 }
             } catch (_) {}
 
-            // 初始化仪表盘功能
-            window.initDeviceManagement();
+            // 初始化仪表盘功能（必须先等 device-management 完成，保证缓存就绪）
+            await window.initDeviceManagement();
             window.initDataAnalysis();
 
             // root 用户才加载用户管理模块

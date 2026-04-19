@@ -55,6 +55,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.isArray(payload) ? payload : [];
     }
 
+    // 缓存设备列表，供 data-analysis.js 复用，避免重复请求
+    async function getDeviceListWithCache() {
+        if (window._cachedDeviceList) {
+            return window._cachedDeviceList;
+        }
+        const list = await getDeviceList();
+        window._cachedDeviceList = list;
+        return list;
+    }
+
     async function addDevice(deviceSeq) {
         const response = await fetch('/api/add_device', {
             method: 'POST',
@@ -361,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDeviceListShell();
 
         try {
-            const devices = await getDeviceList();
+            const devices = await getDeviceListWithCache();
             renderDeviceRows(devices);
         } catch (error) {
             const tbody = document.querySelector('#device-list-table tbody');
@@ -696,8 +706,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Called by the inline script in dashboard.html after auth is confirmed
-    window.initDeviceManagement = function() {
+    window.initDeviceManagement = async function() {
         state.ready = true;
-        loadDeviceListView();
+        await loadDeviceListView();
     };
 });
