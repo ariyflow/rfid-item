@@ -131,18 +131,6 @@
     </main>
 
     <script>
-        // 侧边栏切换
-        document.querySelectorAll('.sidebar-menu li').forEach(item => {
-            item.addEventListener('click', function() {
-                // 移除所有 active
-                document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
-                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-
-                // 添加当前 active
-                this.classList.add('active');
-                document.getElementById(this.dataset.target).classList.add('active');
-            });
-        });
 
         // 初始化 - 由于服务器端已做身份验证，这里直接初始化
         (async function init() {
@@ -170,6 +158,19 @@
                 await loadUserManagement();
             }
 
+            // 侧边栏切换
+            document.querySelectorAll('.sidebar-menu li').forEach(item => {
+                item.addEventListener('click', function() {
+                    // 移除所有 active
+                    document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
+                    document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+
+                    // 添加当前 active
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.target).classList.add('active');
+                });
+            });
+            
             // 处理退出登录
             logoutBtn.addEventListener('click', async () => {
                 await fetch('/admin/logout', { method: 'POST', credentials: 'include' });
