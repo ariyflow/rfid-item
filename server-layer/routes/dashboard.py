@@ -4,16 +4,18 @@ from flask import Blueprint, make_response, jsonify, send_from_directory, sessio
 from functools import wraps
 from .settings import *
 from .dashboard_routes.analysis import analysis_bp
+from .dashboard_routes.user_management import user_management_bp, ROOT_USERNAME
 import os
 
 dashboard_routes = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 dashboard_routes.register_blueprint(analysis_bp)
+dashboard_routes.register_blueprint(user_management_bp)
 
 
 @dashboard_routes.before_request
 def require_auth():
     """Protect all /dashboard routes - redirect to /admin if not authenticated."""
-    if request.endpoint == "dashboard.check_session_handler":
+    if request.endpoint in ("dashboard.check_session_handler", "user_management.check_root_handler"):
         return
 
     if "username" not in session:
@@ -30,5 +32,6 @@ def check_session_handler():
     """Frontend checks auth status here."""
     username = session.get("username")
     if username:
-        return make_response(jsonify({"status": "authenticated", "username": username}), 200)
+        is_root = username == ROOT_USERNAME
+        return make_response(jsonify({"status": "authenticated", "username": username, "is_root": is_root}), 200)
     return make_response(jsonify({"status": "unauthenticated"}), 401)
