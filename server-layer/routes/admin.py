@@ -4,7 +4,11 @@ from flask import Blueprint, request, make_response, jsonify, session, redirect,
 import hashlib
 from model.dbObject import db
 import os
-from .settings import ROOT_DIR, STATIC_DIR
+from .settings import ROOT_DIR
+from utils.config import get_config
+
+config = get_config()
+STATIC_DIR = config.get("STATIC_DIR", "static") if config else "static"
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 

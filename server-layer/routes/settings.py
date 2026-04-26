@@ -3,7 +3,7 @@
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent # 项目的根目录
-STATIC_DIR = "static" # 存放静态文件的目录
+# STATIC_DIR = "static" # 存放静态文件的目录
 
 
 """放弃提供修改这里参数的接口"""

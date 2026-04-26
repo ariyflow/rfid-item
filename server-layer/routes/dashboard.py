@@ -6,6 +6,10 @@ from .settings import *
 from .dashboard_routes.analysis import analysis_bp
 from .dashboard_routes.user_management import user_management_bp, ROOT_USERNAME
 import os
+from utils.config import get_config
+
+config = get_config()
+STATIC_DIR = config.get("STATIC_DIR", "static") if config else "static"
 
 dashboard_routes = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 dashboard_routes.register_blueprint(analysis_bp)

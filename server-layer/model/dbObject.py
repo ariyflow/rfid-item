@@ -3,18 +3,20 @@ import os
 import hashlib
 from model.logger import log
 import time
-
+from utils.config import get_config
 """
 数据库管理模块
 """
 
+config: dict = get_config().get("database")
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根目录
 DATABASE_LOCATION = os.path.join(BASE_DIR, "database")  # 数据保存的目录
 
-DATABASE_NAME = "data.db"  # 数据保存到目录
-DEVICE_TABLE_NAME = "devices" # 设备列表的名字
-SENSOR_TABLE_PREFIX = "sensor_data_" # 设备传感器数据表名字的前缀
-CARD_SWIPES_TABLE_NAME = "card_swipes" # 刷卡记录表名
+DATABASE_NAME = config.get("DATABASE_NAME")# 数据保存到目录
+DEVICE_TABLE_NAME = config.get("DEVICE_TABLE_NAME") # 设备列表的名字
+SENSOR_TABLE_PREFIX = config.get("SENSOR_TABLE_PREFIX") # 设备传感器数据表名字的前缀
+CARD_SWIPES_TABLE_NAME = config.get("CARD_SWIPES_TABLE_NAME") # 刷卡记录表名
 
 
 def _get_conn():

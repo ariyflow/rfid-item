@@ -4,6 +4,10 @@ from flask import Flask, Blueprint, request, make_response, jsonify, send_from_d
 from pathlib import Path
 import os
 from .settings import *
+from utils.config import get_config
+
+config = get_config()
+STATIC_DIR = config.get("STATIC_DIR", "static") if config else "static"
 
 public_routes = Blueprint("public", __name__, url_prefix="/public")
 
