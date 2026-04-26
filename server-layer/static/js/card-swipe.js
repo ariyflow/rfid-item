@@ -37,8 +37,27 @@
         });
     }
 
+    // 解析时间戳为 Unix 时间戳（秒）
+    function parseTimestamp(ts) {
+        const num = parseFloat(ts);
+        if (isNaN(num)) {
+            // 旧格式 "2026-04-26 10:00:00" 转换为 Unix 时间戳
+            return new Date(ts).getTime() / 1000;
+        }
+        return num;
+    }
+
     // 设置快捷时间范围
-    function setQuickRange(days) {
+    function setQuickRange(days, btnElement) {
+        // 移除所有快捷按钮的 active 状态
+        document.querySelectorAll('.card-swipe-filters .quick-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        // 添加当前按钮的 active 状态
+        if (btnElement) {
+            btnElement.classList.add('active');
+        }
+
         const end = new Date();
         const start = new Date();
         start.setDate(start.getDate() - days);
@@ -48,6 +67,9 @@
 
         currentEndTime = Math.floor(end.getTime() / 1000);
         currentStartTime = Math.floor(start.getTime() / 1000);
+
+        // 自动触发查询
+        queryCardSwipes();
     }
 
     // 格式化日期为 YYYY-MM-DD
@@ -57,10 +79,22 @@
 
     // 绑定事件
     function setupEventListeners() {
-        document.getElementById('card-swipe-quick-1day').addEventListener('click', () => setQuickRange(1));
-        document.getElementById('card-swipe-quick-7days').addEventListener('click', () => setQuickRange(7));
-        document.getElementById('card-swipe-quick-30days').addEventListener('click', () => setQuickRange(30));
-        document.getElementById('card-swipe-query-btn').addEventListener('click', queryCardSwipes);
+        document.getElementById('card-swipe-quick-1day').addEventListener('click', function() {
+            setQuickRange(1, this);
+        });
+        document.getElementById('card-swipe-quick-7days').addEventListener('click', function() {
+            setQuickRange(7, this);
+        });
+        document.getElementById('card-swipe-quick-30days').addEventListener('click', function() {
+            setQuickRange(30, this);
+        });
+        document.getElementById('card-swipe-query-btn').addEventListener('click', () => {
+            // 移除快捷按钮的 active 状态（手动查询）
+            document.querySelectorAll('.card-swipe-filters .quick-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            queryCardSwipes();
+        });
         document.getElementById('card-swipe-prev-btn').addEventListener('click', () => loadPage(currentPage - 1));
         document.getElementById('card-swipe-next-btn').addEventListener('click', () => loadPage(currentPage + 1));
 
@@ -80,9 +114,13 @@
 
         if (startDateVal) {
             currentStartTime = Math.floor(new Date(startDateVal + 'T00:00:00+08:00').getTime() / 1000);
+        } else {
+            currentStartTime = 0;
         }
         if (endDateVal) {
             currentEndTime = Math.floor(new Date(endDateVal + 'T23:59:59+08:00').getTime() / 1000);
+        } else {
+            currentEndTime = 0;
         }
 
         loadPage(0);
@@ -113,10 +151,10 @@
                 // 前端过滤时间范围
                 let filtered = data.swipes;
                 if (currentStartTime > 0) {
-                    filtered = filtered.filter(s => parseFloat(s.timestamp) >= currentStartTime);
+                    filtered = filtered.filter(s => parseTimestamp(s.timestamp) >= currentStartTime);
                 }
                 if (currentEndTime > 0) {
-                    filtered = filtered.filter(s => parseFloat(s.timestamp) <= currentEndTime);
+                    filtered = filtered.filter(s => parseTimestamp(s.timestamp) <= currentEndTime);
                 }
                 if (currentDevice) {
                     filtered = filtered.filter(s => s.device_seq === currentDevice);

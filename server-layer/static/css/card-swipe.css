@@ -59,6 +59,20 @@
     background: #bdc3c7;
 }
 
+.card-swipe-filters .quick-btn {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+
+.card-swipe-filters .quick-btn:hover {
+    background: #bdc3c7;
+}
+
+.card-swipe-filters .quick-btn.active {
+    background: #27ae60;
+    color: #fff;
+}
+
 .card-swipe-table {
     width: 100%;
     border-collapse: collapse;
