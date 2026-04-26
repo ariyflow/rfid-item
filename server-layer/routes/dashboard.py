@@ -5,6 +5,7 @@ from functools import wraps
 from .settings import *
 from .dashboard_routes.analysis import analysis_bp
 from .dashboard_routes.user_management import user_management_bp, ROOT_USERNAME
+from .dashboard_routes.card_swipe import card_swipe_bp
 import os
 from utils.config import get_config
 

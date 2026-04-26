@@ -4,7 +4,7 @@ from flask import Blueprint, make_response, jsonify, request
 from model.dbObject import db
 import time
 
-card_swipe_bp = Blueprint("card_swipe", __name__, url_prefix="/api")
+card_swipe_bp = Blueprint("card_swipe", __name__, url_prefix="/card_swipe")
 
 
 @card_swipe_bp.route("/submit_card_swipe", methods=["POST"])
