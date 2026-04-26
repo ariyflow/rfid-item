@@ -20,6 +20,7 @@ docs/*.md
 **/.qwen/
 **/.claude/
 **/.opencode/
+server-layer/docs/**
 
 # not ignore file
 

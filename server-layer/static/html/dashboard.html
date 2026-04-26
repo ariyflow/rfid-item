@@ -43,7 +43,7 @@
         <ul class="sidebar-menu">
             <li class="active" data-target="delete-section">设备管理</li>
             <li data-target="settings-section">数据分析</li>
-            <li data-target="about-section">关于</li>
+            <li data-target="card-swipe-section">刷卡记录</li>
         </ul>
         <div style="padding: 20px; border-top: 1px solid #34495e; margin-top: auto;">
             <span id="current-user" style="font-size: 12px; color: #bdc3c7;"></span>
@@ -125,8 +125,47 @@
             </div>
         </section>
 
-        <section id="about-section" class="content-section">
-            <p>关于内容...</p>
+        <section id="card-swipe-section" class="content-section">
+            <div class="card-swipe-container">
+                <div class="card-swipe-header">
+                    <h2>刷卡记录</h2>
+                </div>
+                <div class="card-swipe-filters">
+                    <label>
+                        设备:
+                        <select id="card-swipe-device-selector">
+                            <option value="">全部设备</option>
+                        </select>
+                    </label>
+                    <label>
+                        开始日期:
+                        <input type="date" id="card-swipe-start-date">
+                    </label>
+                    <label>
+                        结束日期:
+                        <input type="date" id="card-swipe-end-date">
+                    </label>
+                    <button id="card-swipe-quick-1day">最近1天</button>
+                    <button id="card-swipe-quick-7days">最近7天</button>
+                    <button id="card-swipe-quick-30days">最近30天</button>
+                    <button id="card-swipe-query-btn">查询</button>
+                </div>
+                <table class="card-swipe-table" id="card-swipe-table">
+                    <thead>
+                        <tr>
+                            <th>设备序列号</th>
+                            <th>RFID序列号</th>
+                            <th>刷卡时间</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="card-swipe-pagination">
+                    <button id="card-swipe-prev-btn">上一页</button>
+                    <span id="card-swipe-page-info">第 1 页 / 共 1 页</span>
+                    <button id="card-swipe-next-btn">下一页</button>
+                </div>
+            </div>
         </section>
     </main>
 
