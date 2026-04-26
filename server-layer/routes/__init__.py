@@ -4,5 +4,6 @@ from .functional import functional_routes
 from .public import public_routes
 from .dashboard import dashboard_routes
 from .admin import admin_bp
+from .card_swipe import card_swipe_bp
 
 from .settings import *
