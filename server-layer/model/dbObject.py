@@ -14,6 +14,7 @@ DATABASE_LOCATION = os.path.join(BASE_DIR, "database")  # 数据保存的目录
 DATABASE_NAME = "data.db"  # 数据保存到目录
 DEVICE_TABLE_NAME = "devices" # 设备列表的名字
 SENSOR_TABLE_PREFIX = "sensor_data_" # 设备传感器数据表名字的前缀
+CARD_SWIPES_TABLE_NAME = "card_swipes" # 刷卡记录表名
 
 
 def _get_conn():
@@ -63,6 +64,17 @@ class dbObject:
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 timestamp TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+
+        # 创建 card_swipes 表
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {CARD_SWIPES_TABLE_NAME}(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_seq TEXT,
+                rfid_serial TEXT,
+                timestamp TEXT
             )
         """)
         conn.commit()
@@ -486,6 +498,85 @@ class dbObject:
             return {"status": "success", "message": "更新成功"}
         except Exception as e:
             self.par.error(f"运行函数 [update_auth] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def insert_card_swipe(self, device_seq: str, rfid_serial: str, timestamp: str) -> dict:
+        """插入刷卡记录
+        Args:
+            device_seq: 设备序列号
+            rfid_serial: RFID卡序列号
+            timestamp: 刷卡时间
+        Returns:
+            dict: 包含插入状态的字典
+        """
+        if not device_seq:
+            return {"status": "error", "message": "缺少设备序列号参数"}
+
+        if not rfid_serial:
+            return {"status": "error", "message": "缺少RFID序列号参数"}
+
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+
+            cur.execute(
+                f"INSERT INTO {CARD_SWIPES_TABLE_NAME} (device_seq, rfid_serial, timestamp) VALUES (?, ?, ?)",
+                (device_seq, rfid_serial, timestamp)
+            )
+            conn.commit()
+            self.par.debug(f"写入刷卡记录成功：device_seq={device_seq}, rfid_serial={rfid_serial}")
+
+            cur.close()
+            conn.close()
+            return {"status": "success", "message": "插入成功"}
+        except Exception as e:
+            self.par.error(f"运行函数 [insert_card_swipe] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_card_swipes(self, start: int, num: int, device_seq: str = None) -> dict:
+        """获取刷卡记录
+        Args:
+            start: 起始位置（从 0 开始）
+            num: 返回 n 条数据
+            device_seq: 设备序列号（可选，为空则返回所有设备的记录）
+        Returns:
+            dict: 包含刷卡记录的字典
+        """
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+
+            if device_seq:
+                cur.execute(
+                    f"""
+                    SELECT id, device_seq, rfid_serial, timestamp
+                    FROM {CARD_SWIPES_TABLE_NAME}
+                    WHERE device_seq = ?
+                    ORDER BY id DESC
+                    LIMIT ? OFFSET ?
+                """,
+                    (device_seq, num, start)
+                )
+            else:
+                cur.execute(
+                    f"""
+                    SELECT id, device_seq, rfid_serial, timestamp
+                    FROM {CARD_SWIPES_TABLE_NAME}
+                    ORDER BY id DESC
+                    LIMIT ? OFFSET ?
+                """,
+                    (num, start)
+                )
+
+            rows = cur.fetchall()
+            swipes = [{"id": row[0], "device_seq": row[1], "rfid_serial": row[2], "timestamp": row[3]} for row in rows]
+            self.par.info(f"获取刷卡记录成功，共 {len(swipes)} 条")
+
+            cur.close()
+            conn.close()
+            return {"status": "success", "swipes": swipes}
+        except Exception as e:
+            self.par.error(f"运行函数 [get_card_swipes] 时发生错误：{e}")
             return {"status": "error", "message": str(e)}
 
     def quit_handler(self):
