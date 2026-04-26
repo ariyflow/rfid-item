@@ -2,11 +2,11 @@
 
 from flask import Blueprint, make_response, jsonify, request, session
 from model.dbObject import db
+from utils.config import get_config
 
 user_management_bp = Blueprint("user_management", __name__)
 
-ROOT_USERNAME = "root"
-
+ROOT_USERNAME = get_config().get("ROOT_USERNAME", "root") if get_config() else "root"
 
 @user_management_bp.before_request
 def require_root():
