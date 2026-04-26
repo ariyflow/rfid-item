@@ -1,0 +1,118 @@
+.card-swipe-container {
+    padding: 20px;
+}
+
+.card-swipe-header h2 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+.card-swipe-filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-swipe-filters label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+.card-swipe-filters select,
+.card-swipe-filters input[type="date"] {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.card-swipe-filters button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+#card-swipe-query-btn {
+    background: #3498db;
+    color: white;
+}
+
+#card-swipe-query-btn:hover {
+    background: #2980b9;
+}
+
+.card-swipe-quick-btns button {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+
+.card-swipe-quick-btns button:hover {
+    background: #bdc3c7;
+}
+
+.card-swipe-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-swipe-table th,
+.card-swipe-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.card-swipe-table th {
+    background: #34495e;
+    color: #fff;
+    font-weight: normal;
+}
+
+.card-swipe-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.card-swipe-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.card-swipe-pagination button {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.card-swipe-pagination button:hover:not(:disabled) {
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
+}
+
+.card-swipe-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#card-swipe-page-info {
+    font-size: 14px;
+    color: #666;
+}
