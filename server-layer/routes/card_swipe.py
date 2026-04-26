@@ -2,6 +2,7 @@
 
 from flask import Blueprint, make_response, jsonify, request
 from model.dbObject import db
+import time
 
 card_swipe_bp = Blueprint("card_swipe", __name__, url_prefix="/api")
 
@@ -12,16 +13,13 @@ def submit_card_swipe_handler():
     data = request.get_json() or {}
     device_seq = data.get("device_seq", "").strip()
     rfid_serial = data.get("rfid_serial", "").strip()
-    timestamp = data.get("timestamp", "").strip()
+    timestamp = str(time.time())
 
     if not device_seq:
         return make_response(jsonify({"status": "error", "message": "设备序列号不能为空"}), 400)
 
     if not rfid_serial:
         return make_response(jsonify({"status": "error", "message": "RFID序列号不能为空"}), 400)
-
-    if not timestamp:
-        return make_response(jsonify({"status": "error", "message": "时间戳不能为空"}), 400)
 
     result = db.insert_card_swipe(device_seq, rfid_serial, timestamp)
     if result["status"] != "success":

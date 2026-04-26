@@ -65,10 +65,29 @@ import time
 # resp.close()
 
 """/api/remove_device测试"""
-import secrets
-data = {
-    "device_seq": secrets.token_hex(6)
-}
-resp = requests.post("http://127.0.0.1:5353/api/remove_device", json=data)
-print(resp.json())
-resp.close()
+# import secrets
+# data = {
+#     "device_seq": secrets.token_hex(6)
+# }
+# resp = requests.post("http://127.0.0.1:5353/api/remove_device", json=data)
+# print(resp.json())
+# resp.close()
+
+"""/api/submit_card_swipe测试"""
+# data = {
+#     "device_seq": "AABBCCDDEEFF",
+#     "rfid_serial": "11223344",
+# }
+# resp = requests.post("http://127.0.0.1:5353/api/submit_card_swipe", json=data)
+# print(resp.json())
+# resp.close()
+
+"""/api/fetch_card_swipe测试"""
+# data = {
+#     "device_seq": "AABBCCDDEEFF",
+#     "start": 0,
+#     "num": 10
+# }
+# resp = requests.post("http://127.0.0.1:5353/api/fetch_card_swipe", json=data)
+# print(resp.json())
+# resp.close()
