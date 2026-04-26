@@ -6,7 +6,6 @@ import secrets
 from model import db, log
 from routes import sensor_route, database_bp, functional_routes, public_routes, dashboard_routes
 from routes.admin import admin_bp
-from routes.card_swipe import card_swipe_bp
 import sys
 from utils.root_manage import ensure_root_user
 
@@ -20,7 +19,6 @@ app.register_blueprint(functional_routes) # 分配序列号
 app.register_blueprint(public_routes) # public界面的相关路由
 app.register_blueprint(dashboard_routes) # dashboard界面的相关路由
 app.register_blueprint(admin_bp) # admin登录相关
-app.register_blueprint(card_swipe_bp) # 刷卡记录相关
 
 @app.route("/")
 def default_handler():

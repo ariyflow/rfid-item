@@ -73,21 +73,21 @@ import time
 # print(resp.json())
 # resp.close()
 
-"""/api/submit_card_swipe测试"""
-# data = {
-#     "device_seq": "AABBCCDDEEFF",
-#     "rfid_serial": "11223344",
-# }
-# resp = requests.post("http://127.0.0.1:5353/api/submit_card_swipe", json=data)
-# print(resp.json())
-# resp.close()
+"""/dashboard/card_swipe/submit_card_swipe测试"""
+data = {
+    "device_seq": "AABBCCDDEEFF",
+    "rfid_serial": "11223344",
+}
+resp = requests.post("http://127.0.0.1:5353/dashboard/card_swipe/submit_card_swipe", json=data)
+print(resp.json())
+resp.close()
 
-"""/api/fetch_card_swipe测试"""
-# data = {
-#     "device_seq": "AABBCCDDEEFF",
-#     "start": 0,
-#     "num": 10
-# }
-# resp = requests.post("http://127.0.0.1:5353/api/fetch_card_swipe", json=data)
-# print(resp.json())
-# resp.close()
+"""/dashboard/card_swipe/fetch_card_swipe测试"""
+data = {
+    "device_seq": "AABBCCDDEEFF",
+    "start": 0,
+    "num": 10
+}
+resp = requests.post("http://127.0.0.1:5353/dashboard/card_swipe/fetch_card_swipe", json=data)
+print(resp.json())
+resp.close()

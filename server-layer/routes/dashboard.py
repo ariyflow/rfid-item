@@ -15,6 +15,7 @@ STATIC_DIR = config.get("STATIC_DIR", "static") if config else "static"
 dashboard_routes = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 dashboard_routes.register_blueprint(analysis_bp)
 dashboard_routes.register_blueprint(user_management_bp)
+dashboard_routes.register_blueprint(card_swipe_bp)
 
 
 @dashboard_routes.before_request

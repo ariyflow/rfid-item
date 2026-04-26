@@ -139,7 +139,7 @@
             params.device_seq = currentDevice;
         }
 
-        fetch('/api/fetch_card_swipe', {
+        fetch('/dashboard/card_swipe/fetch_card_swipe', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',
