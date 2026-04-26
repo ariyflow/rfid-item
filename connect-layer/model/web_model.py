@@ -107,6 +107,11 @@ class webModel(QObject):
         url = f"{self.par.base_url}/api/get_device_list"
         self.webt.add_request(url, "GET")
 
+    def submit_card_swipe(self, device_seq: str, rfid: str):
+        """提交刷卡信息"""
+        url = f"{self.par.base_url}/dashboard/card_swipe/submit_card_swipe"
+        self.webt.add_request(url, "POST", {"device_seq": device_seq, "rfid_serial": rfid})
+
     def resp_parse(self, data: dict):
         """发送的请求得到响应后做处理"""
         self.par.log.debug(f"获取到应用层响应：{data}")
