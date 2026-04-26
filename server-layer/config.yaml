@@ -1,6 +1,6 @@
 ROOT_USERNAME: "root"
 STATIC_DIR: "static" # 存放静态文件的目录
-ROOT_DIR: "/home/yw/github/frid-item/server-layer" # 项目运行的根目录，需要根据情况调整（这一项尽量不要使用，在项目内部获取路径）
+ROOT_DIR: "/home/yw/github/rfid-item/server-layer" # 项目运行的根目录，需要根据情况调整（这一项尽量不要使用，在项目内部获取路径）
 database:
   DATABASE_NAME: "data.db"  # 数据保存到目录
   DEVICE_TABLE_NAME: "devices" # 设备列表的名字
