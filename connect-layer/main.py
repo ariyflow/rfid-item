@@ -77,6 +77,7 @@ class SerialToolWindow(QMainWindow):
         self.device_seq = b"" # 连接串口后，获取的设备序列号
         self.token = TOKEN
         self.base_url = BASE_URL
+        self.rfid_seq_cache = {}  # 缓存RFID序列号，用于去重（1分钟内）
         # self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
         
         # 模块声明
@@ -694,8 +695,24 @@ class SerialToolWindow(QMainWindow):
                 self.check_device_seq(self.device_seq) # 每次获取完从机序列号后，检查从机序列号是否正确
             elif command == 0x06: # 提交刷卡信息
                 rfid_seq = data[4:-1]
-                self.web.submit_card_swipe(self.device_seq.hex(), rfid_seq.hex())
-                self.log.info(f"获取到刷卡信息：{self._show_btyes_with_space(rfid_seq)}")
+                rfid_seq_hex = rfid_seq.hex()
+                current_time = time.time()
+
+                # 清理过期的 seq（超过1分钟）
+                expired_keys = [k for k, v in self.rfid_seq_cache.items() if current_time - v > 60]
+                for k in expired_keys:
+                    del self.rfid_seq_cache[k]
+
+                if rfid_seq_hex in self.rfid_seq_cache:
+                    # 已经存在，不调用 submit_card_swipe，输出 debug 信息
+                    self.log.debug(f"RFID序列号重复（1分钟内）：{self._show_btyes_with_space(rfid_seq)}")
+                else:
+                    # 新的 seq，调用 submit_card_swipe
+                    self.web.submit_card_swipe(self.device_seq.hex(), rfid_seq_hex)
+                    self.log.info(f"获取到刷卡信息：{self._show_btyes_with_space(rfid_seq)}")
+                    # 保存 seq 和当前时间戳
+                    self.rfid_seq_cache[rfid_seq_hex] = current_time
+                
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
