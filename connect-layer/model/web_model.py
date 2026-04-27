@@ -1,5 +1,6 @@
 from typing import Optional
 import time
+import hashlib
 from queue import Queue
 import requests
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -82,6 +83,14 @@ class webModel(QObject):
         self.webt.start()
 
         self.webt.resp_signal.connect(self.resp_parse)
+        self.is_logged_in = False
+    
+    def login(self, username: str, password: str):
+        """登录到服务器"""
+        url = f"{self.par.base_url}/admin/login"
+        data = {"username": username, "password": password}
+        self.webt.add_request(url, "POST", data)
+        self.par.log.info(f"正在登录服务器，用户名：{username}")
     
     def submit_sensor_data(self, device_seq: bytes, temp: float, light: int, hall: int):
         """提交传感器数据"""
@@ -115,6 +124,15 @@ class webModel(QObject):
     def resp_parse(self, data: dict):
         """发送的请求得到响应后做处理"""
         self.par.log.debug(f"获取到应用层响应：{data}")
+
+        # 检查是否是登录响应
+        if "admin/login" in data.get("url", ""):
+            if data.get("status") == 200:
+                self.is_logged_in = True
+                self.par.log.info("服务器登录成功")
+            else:
+                self.is_logged_in = False
+                self.par.log.error(f"服务器登录失败：{data.get('resp')}")
 
         # self.par.log.debug(f"获取到设备列表：{data.get('resp')}")
         self.resp_submit.emit(data) # 向主线程返回响应
