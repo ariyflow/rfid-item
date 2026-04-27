@@ -763,10 +763,10 @@ class SerialToolWindow(QMainWindow):
                 - url: 请求的url
                 - resp: 返回响应体
         """
-
+        self.textUpperLayerLog.appendPlainText(json.dumps(data))
+        
         if data.get("url").endswith("get_device_list") and data.get("status") == 200: # type: ignore # 获取到设备序列号列表，输出
             self.output_data_text.appendPlainText(data.get("resp")) # type: ignore
-
             """4.1 实现逻辑更新，现在获取设备列表后不需要更新序列号"""
             # 如果需要更新从机设备的序列号，进入下面的逻辑
             # if self._is_need_update_device_seq:
@@ -799,7 +799,11 @@ class SerialToolWindow(QMainWindow):
             try:
                 msg = json.loads(data.get("resp"))
                 if msg.get("status", "") == "success": # 此处增加向感知层确认刷卡信息
-                    pass
+                    buf = b"\xaa\x55\x06\x01"+b"\x00"*19
+                    buf = buf+self._get_check_sum(buf)
+                    self.log.debug(f"向从机发送刷卡响应：{self._show_btyes_with_space(buf)}")
+                    self.serialt.send_data(buf)
+                    
             except Exception as e:
                 self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
