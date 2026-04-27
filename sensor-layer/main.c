@@ -48,7 +48,7 @@ void main() {
 	sysInit();
 	disInit();
 	ATInit();
-  	uart1Init(9600);
+  uart1Init(9600);
 	
 	setUart1Buf(receive_buf, 24, send_buf, 2);
 	
@@ -224,6 +224,16 @@ void my1SCallback(){
 		// 检测当前是否存在RFID
 		if(simple_read_uid(uid) == 0x03){
 			is_stream_led = 1;
+			
+			// 存在RFID时，需要上报刷卡数据
+			send_buf[2] = 0x06;
+			send_buf[3] = 0x06;
+			send_buf[4] = uid[0];
+			send_buf[5] = uid[1];
+			send_buf[6] = uid[2];
+			send_buf[7] = uid[3];
+			send_buf[8] = set_checksum(send_buf, 8);
+			uart1Send(send_buf, 9);
 		}
 		else is_stream_led = 0;
 
