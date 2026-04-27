@@ -199,8 +199,9 @@ class SerialToolWindow(QMainWindow):
         self.lineEditServerUrl: QLineEdit = ui_window.findChild(QLineEdit, "lineEditServerUrl") # type: ignore | 服务器地址
         self.textUpperLayerLog: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "textUpperLayerLog") # type: ignore | 上层日志
         self.login_btn: QPushButton = ui_window.findChild(QPushButton, "login_btn")
+        self.user_name_edit: QLineEdit = ui_window.findChild(QLineEdit, "user_name_edit")
+        self.password_edit: QLineEdit = ui_window.findChild(QLineEdit, "password_edit")
         
-        print(self.login_btn)
         # print(
         #     self.stcope_setseq_btn,
         #     self.stcope_input_edit,
