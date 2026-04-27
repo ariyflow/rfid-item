@@ -26,9 +26,10 @@ import json
 import math
 
 # 常量定义
-
 BASE_URL = "http://127.0.0.1:5353" # 服务器的url
-TOKEN = "" # 向服务器发送数据所需的token
+
+# 登录凭据
+LOGIN_USERNAME = "root"
 
 # 安全常量
 MAX_LOG_HISTORY = 10000  # 最大日志历史条数
@@ -75,7 +76,6 @@ class SerialToolWindow(QMainWindow):
 
         # 全局变量声明
         self.device_seq = b"" # 连接串口后，获取的设备序列号
-        self.token = TOKEN
         self.base_url = BASE_URL
         self.rfid_seq_cache = {}  # 缓存RFID序列号，用于去重（1分钟内）
         # self._is_need_update_device_seq = False # 标志是否需要进行从机序列号的更新
@@ -87,6 +87,11 @@ class SerialToolWindow(QMainWindow):
 
         self.web = webModel(self)
         self.web.resp_submit.connect(self._web_resp_parse)
+
+        # 登录到服务器
+        self.login_uername = "yw"
+        self.login_password = "8efa3e7a176466748de5628e8b27b0e0"
+        self.web.login(self.login_uername, self.login_password)
     
     def quit_handler(self):
         if hasattr(self, "web"):
@@ -192,9 +197,10 @@ class SerialToolWindow(QMainWindow):
         
         """上层通信"""
         self.lineEditServerUrl: QLineEdit = ui_window.findChild(QLineEdit, "lineEditServerUrl") # type: ignore | 服务器地址
-        self.lineEditApiToken: QLineEdit = ui_window.findChild(QLineEdit, "lineEditApiToken") # type: ignore | api token
         self.textUpperLayerLog: QPlainTextEdit = ui_window.findChild(QPlainTextEdit, "textUpperLayerLog") # type: ignore | 上层日志
-
+        self.login_btn: QPushButton = ui_window.findChild(QPushButton, "login_btn")
+        
+        print(self.login_btn)
         # print(
         #     self.stcope_setseq_btn,
         #     self.stcope_input_edit,
@@ -212,8 +218,8 @@ class SerialToolWindow(QMainWindow):
         # 刷新串口列表
         self._refresh_ports()
 
-        self.lineEditServerUrl.setText(BASE_URL)
-        self.lineEditApiToken.setText(TOKEN)
+        # self.lineEditServerUrl.setText(BASE_URL)
+        # self.lineEditApiToken.setText(TOKEN)
         
 
 
@@ -823,7 +829,7 @@ class SerialToolWindow(QMainWindow):
 
 # 主程序入口
 def main():
-
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     """主函数"""
     app = QApplication(sys.argv)
     # app.setStyle("Fusion")
