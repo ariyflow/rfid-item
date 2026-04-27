@@ -129,7 +129,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "pyserial", specifier = ">=3.5" },
-    { name = "pyside6", specifier = "==6.7.3" },
+    { name = "pyside6", specifier = ">=6.7.3" },
     { name = "requests", specifier = ">=2.33.0" },
 ]
 

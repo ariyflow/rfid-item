@@ -692,7 +692,10 @@ class SerialToolWindow(QMainWindow):
                 self.log.info(f"获取到连接从机的序列号：{self.device_seq.hex()}")
 
                 self.check_device_seq(self.device_seq) # 每次获取完从机序列号后，检查从机序列号是否正确
-
+            elif command == 0x06: # 提交刷卡信息
+                rfid_seq = data[4:-1]
+                self.web.submit_card_swipe(self.device_seq.hex(), rfid_seq.hex())
+                self.log.info(f"获取到刷卡信息：{self._show_btyes_with_space(rfid_seq)}")
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
