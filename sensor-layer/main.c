@@ -28,6 +28,32 @@ code unsigned char test_data[16] = { // 测试数据
 	13,14,15,16
 };
 
+sfr P3M1 = 0xB1;
+sfr P3M0 = 0xB2;
+unsigned int is_beep = 0;
+void Delay100us()		//@11.0592MHz
+{
+	unsigned char i, j;
+
+	_nop_();
+	_nop_();
+	i = 2;
+	j = 15;
+	do
+	{
+		while (--j);
+	} while (--i);
+}
+
+void setBeep(unsigned int xms){
+	unsigned int i=0;
+	xms = xms*10;
+	for(;i<xms;i++){
+		P3_4 = !P3_4;
+		Delay100us();
+	}
+}
+
 unsigned char simple_read_uid(unsigned char* _id);
 unsigned char writeRFID(unsigned char _addr, unsigned char* _data);
 unsigned char readRFID(unsigned char _addr, unsigned char* _uid,unsigned char* _buf);
@@ -41,6 +67,12 @@ void myKeyCallback(); // 按键回调
 void myADCKeyCallback(); // ADC按键回调
 void myUartCallback(); // 串口回调
 void read_device_seq(); // 读取设备序列号
+void my1msCallback(){
+	if(is_beep){
+		P3_4 = !P3_4;
+		is_beep--;
+	}
+}
 
 void main() {
   // unsigned char ver;
@@ -49,6 +81,8 @@ void main() {
 	disInit();
 	ATInit();
   uart1Init(9600);
+//	P3M1 &= ~0x08;
+//	P3M0 |= 0x08;
 	
 	setUart1Buf(receive_buf, 24, send_buf, 2);
 	
@@ -56,6 +90,7 @@ void main() {
 	// 现已解决
 	adcInit(); // 暂时不能开adc的中断
 	
+	setCallback(enumEventInt1, my1msCallback);
 	setCallback(enumEventInt100, my100msCallback);
 	setCallback(enumEventKey, myKeyCallback);
 	setCallback(enumEventAdcKey, myADCKeyCallback);
@@ -435,8 +470,16 @@ void myUartCallback(){
 		uart1Send(send_buf, 11);
 
 	}
-	else{
-
+	else if(command == 0x06){
+		// 收到刷卡的响应
+		if(receive_buf[3] == 0x01){ // 成功
+			setBeep(200);
+			send_buf[2] = 0x03;
+			send_buf[3] = 0xFF;
+			send_buf[4] = 0x06;
+			send_buf[5] = set_checksum(send_buf, 5);
+			uart1Send(send_buf, 6);
+		}
 	}
 }
 

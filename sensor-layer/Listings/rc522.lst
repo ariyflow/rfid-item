@@ -1,4 +1,4 @@
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 1   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 1   
 
 
 C51 COMPILER V9.54, COMPILATION OF MODULE RC522
@@ -62,7 +62,7 @@ line level    source
   52          //          pTagType[OUT]：卡片类型代码
   53          //                0x4400 = Mifare_UltraLight
   54          //                0x0400 = Mifare_One(S50)
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 2   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 2   
 
   55          //                0x0200 = Mifare_One(S70)
   56          //                0x0800 = Mifare_Pro(X)
@@ -126,7 +126,7 @@ line level    source
  114   3                   snr_check ^= ucComMF522Buf[i];
  115   3               }
  116   2               if (snr_check != ucComMF522Buf[i])
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 3   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 3   
 
  117   2               {   status = MI_ERR;    }
  118   2          }
@@ -190,7 +190,7 @@ line level    source
  176   1          for (i=0; i<6; i++)
  177   1          {    ucComMF522Buf[i+2] = *(pKey+i);   }
  178   1          for (i=0; i<6; i++)
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 4   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 4   
 
  179   1          {    ucComMF522Buf[i+8] = *(pSnr+i);   }
  180   1       //   memcpy(&ucComMF522Buf[2], pKey, 6); 
@@ -254,7 +254,7 @@ line level    source
  238   1              
  239   1          if (status == MI_OK)
  240   1          {
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 5   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 5   
 
  241   2              //memcpy(ucComMF522Buf, pData, 16);
  242   2              for (i=0; i<16; i++)
@@ -318,7 +318,7 @@ line level    source
  300   2          }
  301   1          return status;
  302   1      }
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 6   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 6   
 
  303          
  304          /////////////////////////////////////////////////////////////////////
@@ -382,7 +382,7 @@ line level    source
  362   1          xdata unsigned int  unLen;
  363   1          xdata unsigned char ucComMF522Buf[MAXRLEN]; 
  364   1      
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 7   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 7   
 
  365   1          ucComMF522Buf[0] = PICC_HALT;
  366   1          ucComMF522Buf[1] = 0;
@@ -446,7 +446,7 @@ line level    source
  424          //参数说明：Address[IN]:寄存器地址
  425          //返    回：读出的值
  426          /////////////////////////////////////////////////////////////////////
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 8   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 8   
 
  427          unsigned char ReadRawRC(unsigned char Address)
  428          {
@@ -510,7 +510,7 @@ line level    source
  486   1          
  487   1          // 发送地址
  488   1          for(i = 8; i > 0; i--) {
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 9   
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 9   
 
  489   2              // 【关键】MOSI 经过反向器，需要取反输出
  490   2              MF522_SI = !((ucAddr & 0x80) == 0x80);
@@ -574,7 +574,7 @@ line level    source
  548                           unsigned char InLenByte,
  549                           unsigned char *pOutData, 
  550                           unsigned int  *pOutLenBit)
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 10  
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 10  
 
  551          {
  552   1          xdata char status = MI_ERR;
@@ -638,7 +638,7 @@ line level    source
  610   4                      else
  611   4                      {   *pOutLenBit = n*8;   }
  612   4                      if (n == 0)
-C51 COMPILER V9.54   RC522                                                                 04/27/2026 20:36:46 PAGE 11  
+C51 COMPILER V9.54   RC522                                                                 04/27/2026 22:31:26 PAGE 11  
 
  613   4                      {   n = 1;    }
  614   4                      if (n > MAXRLEN)
