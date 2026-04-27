@@ -89,9 +89,9 @@ class SerialToolWindow(QMainWindow):
         self.web.resp_submit.connect(self._web_resp_parse)
 
         # 登录到服务器
-        self.login_uername = "yw"
-        self.login_password = "8efa3e7a176466748de5628e8b27b0e0"
-        self.web.login(self.login_uername, self.login_password)
+        # self.login_uername = "yw"
+        # self.login_password = "8efa3e7a176466748de5628e8b27b0e0"
+        # self.web.login(self.login_uername, self.login_password)
     
     def quit_handler(self):
         if hasattr(self, "web"):
@@ -246,7 +246,14 @@ class SerialToolWindow(QMainWindow):
         self.stcope_setseq_btn.clicked.connect(self._setseq_handler)
         self.stcope_getseq_btn.clicked.connect(self._send_fetch_device_seq_handler)
         self.get_device_list_btn.clicked.connect(self._get_device_list_handler)
+        
+        # 应用层
+        self.login_btn.clicked.connect(self._server_login_handler)
 
+    def _server_login_handler(self):
+        self.log.debug(f"尝试登录：username: {self.user_name_edit.text().strip()}")
+        self.web.login(self.user_name_edit.text().strip(), self.password_edit.text().strip())
+    
     def _get_uid_handler(self):
         """获取RFID的uid"""
         tmp = b"\xaa\x55\x00"+b"\x00"*20
@@ -786,6 +793,13 @@ class SerialToolWindow(QMainWindow):
                 self.log.debug(f"发送设置从机序列号的数据帧：{self._show_btyes_with_space(msg)}")
                 
                 self.serialt.send_data(msg)
+            except Exception as e:
+                self.log.error(f"执行 _setseq_handler 发生错误：{e}")
+        elif data.get("url").endswith("submit_card_swipe") and data.get("status") == 200:
+            try:
+                msg = json.loads(data.get("resp"))
+                if msg.get("status", "") == "success": # 此处增加向感知层确认刷卡信息
+                    pass
             except Exception as e:
                 self.log.error(f"执行 _setseq_handler 发生错误：{e}")
 
