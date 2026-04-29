@@ -92,6 +92,7 @@ class SerialToolWindow(QMainWindow):
         # self.login_uername = "yw"
         # self.login_password = "8efa3e7a176466748de5628e8b27b0e0"
         # self.web.login(self.login_uername, self.login_password)
+        self._server_login_handler()
     
     def quit_handler(self):
         if hasattr(self, "web"):
