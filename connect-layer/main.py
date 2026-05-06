@@ -26,7 +26,7 @@ import json
 import math
 
 # 常量定义
-BASE_URL = "http://127.0.0.1:5353" # 服务器的url
+BASE_URL = "https://ariyflow.asia" # 服务器的url
 
 # 登录凭据
 LOGIN_USERNAME = "root"
