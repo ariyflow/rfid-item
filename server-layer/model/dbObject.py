@@ -761,6 +761,49 @@ class dbObject:
             log.error(f"运行函数[delete_rfid_card]时发生错误：{e}")
             return {"status": "error", "message": str(e)}
 
+    def ensure_rfid_card(self, uid: str) -> dict:
+        """确保RFID卡存在，不存在则创建（余额为0）。
+        该方法用于刷卡记录提交时自动注册未知卡。
+        Args:
+            uid: RFID卡的UID（8字符十六进制小写）
+        Returns:
+            dict: 包含卡信息的字典
+        """
+        if not uid:
+            return {"status": "error", "message": "UID不能为空"}
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, uid, balance, created_at, updated_at FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?",
+                (uid,)
+            )
+            row = cur.fetchone()
+            if row:
+                cur.close()
+                conn.close()
+                columns = ["id", "uid", "balance", "created_at", "updated_at"]
+                return {"status": "success", "card": dict(zip(columns, row))}
+            timestamp = str(time.time())
+            cur.execute(
+                f"INSERT INTO {RFID_CARDS_TABLE_NAME} (uid, balance, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (uid, 0, timestamp, timestamp)
+            )
+            conn.commit()
+            log.info(f"刷卡记录触发自动注册RFID卡 {uid}，余额: 0")
+            cur.execute(
+                f"SELECT id, uid, balance, created_at, updated_at FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?",
+                (uid,)
+            )
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            columns = ["id", "uid", "balance", "created_at", "updated_at"]
+            return {"status": "success", "card": dict(zip(columns, row))}
+        except Exception as e:
+            log.error(f"运行函数[ensure_rfid_card]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
     def quit_handler(self):
         """数据库退出"""
         return
