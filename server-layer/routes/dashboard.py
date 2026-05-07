@@ -6,6 +6,7 @@ from .settings import *
 from .dashboard_routes.analysis import analysis_bp
 from .dashboard_routes.user_management import user_management_bp, ROOT_USERNAME
 from .dashboard_routes.card_swipe import card_swipe_bp
+from .dashboard_routes.rfid_card import rfid_card_bp
 import os
 from utils.config import get_config
 
@@ -16,6 +17,7 @@ dashboard_routes = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 dashboard_routes.register_blueprint(analysis_bp)
 dashboard_routes.register_blueprint(user_management_bp)
 dashboard_routes.register_blueprint(card_swipe_bp)
+dashboard_routes.register_blueprint(rfid_card_bp)
 
 
 @dashboard_routes.before_request

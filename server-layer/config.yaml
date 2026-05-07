@@ -6,3 +6,4 @@ database:
   DEVICE_TABLE_NAME: "devices" # 设备列表的名字
   SENSOR_TABLE_PREFIX: "sensor_data_" # 设备传感器数据表名字的前缀
   CARD_SWIPES_TABLE_NAME: "card_swipes" # 刷卡记录表名
+  RFID_CARDS_TABLE_NAME: "rfid_cards" # RFID卡管理表名

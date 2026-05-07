@@ -17,6 +17,7 @@ DATABASE_NAME = config.get("DATABASE_NAME")# 数据保存到目录
 DEVICE_TABLE_NAME = config.get("DEVICE_TABLE_NAME") # 设备列表的名字
 SENSOR_TABLE_PREFIX = config.get("SENSOR_TABLE_PREFIX") # 设备传感器数据表名字的前缀
 CARD_SWIPES_TABLE_NAME = config.get("CARD_SWIPES_TABLE_NAME") # 刷卡记录表名
+RFID_CARDS_TABLE_NAME = config.get("RFID_CARDS_TABLE_NAME") # RFID卡管理表名
 
 
 def _get_conn():
@@ -77,6 +78,18 @@ class dbObject:
                 device_seq TEXT,
                 rfid_serial TEXT,
                 timestamp TEXT
+            )
+        """)
+        conn.commit()
+
+        # 创建 rfid_cards 表
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {RFID_CARDS_TABLE_NAME}(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uid TEXT UNIQUE NOT NULL,
+                balance REAL DEFAULT 0,
+                created_at TEXT,
+                updated_at TEXT
             )
         """)
         conn.commit()
@@ -579,6 +592,173 @@ class dbObject:
             return {"status": "success", "swipes": swipes}
         except Exception as e:
             self.par.error(f"运行函数 [get_card_swipes] 时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_rfid_cards(self, start: int = 0, num: int = 100) -> dict:
+        """获取所有RFID卡
+        Args:
+            start: 起始位置
+            num: 返回条数
+        Returns:
+            dict: {"status": "success", "cards": [...]}
+        """
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, uid, balance, created_at, updated_at FROM {RFID_CARDS_TABLE_NAME} ORDER BY id DESC LIMIT ? OFFSET ?",
+                (num, start)
+            )
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            columns = ["id", "uid", "balance", "created_at", "updated_at"]
+            return {"status": "success", "cards": [dict(zip(columns, row)) for row in rows]}
+        except Exception as e:
+            log.error(f"运行函数[get_rfid_cards]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_rfid_card(self, uid: str) -> dict:
+        """获取单个RFID卡
+        Args:
+            uid: RFID卡的UID
+        Returns:
+            dict: 包含卡信息的字典
+        """
+        if not uid:
+            return {"status": "error", "message": "UID不能为空"}
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, uid, balance, created_at, updated_at FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?",
+                (uid,)
+            )
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row is None:
+                return {"status": "not_found", "message": f"RFID卡 {uid} 不存在"}
+            columns = ["id", "uid", "balance", "created_at", "updated_at"]
+            return {"status": "success", "card": dict(zip(columns, row))}
+        except Exception as e:
+            log.error(f"运行函数[get_rfid_card]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def add_rfid_card(self, uid: str, balance: float = 0) -> dict:
+        """添加RFID卡
+        Args:
+            uid: RFID卡的UID
+            balance: 初始余额
+        Returns:
+            dict: 包含添加状态的字典
+        """
+        if not uid:
+            return {"status": "error", "message": "UID不能为空"}
+        try:
+            timestamp = str(time.time())
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO {RFID_CARDS_TABLE_NAME} (uid, balance, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (uid, balance, timestamp, timestamp)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            log.info(f"添加RFID卡 {uid} 成功，余额: {balance}")
+            return {"status": "success", "message": "添加成功"}
+        except Exception as e:
+            log.error(f"运行函数[add_rfid_card]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def update_rfid_card_balance(self, uid: str, amount: float, mode: str = "add") -> dict:
+        """修改RFID卡余额
+        Args:
+            uid: RFID卡的UID
+            amount: 金额（mode为"add"时增减，mode为"set"时设为绝对值）
+            mode: "add" - 增加/扣除余额；"set" - 直接设置余额
+        Returns:
+            dict: 包含操作状态的字典
+        """
+        if not uid:
+            return {"status": "error", "message": "UID不能为空"}
+        try:
+            timestamp = str(time.time())
+            conn = _get_conn()
+            cur = conn.cursor()
+
+            # 检查卡是否存在
+            cur.execute(f"SELECT id, balance FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?", (uid,))
+            row = cur.fetchone()
+
+            if row is None:
+                # 卡不存在
+                if mode == "add" and amount > 0:
+                    # 增加余额时自动创建
+                    cur.execute(
+                        f"INSERT INTO {RFID_CARDS_TABLE_NAME} (uid, balance, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                        (uid, amount, timestamp, timestamp)
+                    )
+                    conn.commit()
+                    new_balance = amount
+                    log.info(f"RFID卡 {uid} 不存在，已自动创建，余额: {new_balance}")
+                    cur.close()
+                    conn.close()
+                    return {"status": "success", "message": "卡不存在，已自动创建", "balance": new_balance}
+                else:
+                    cur.close()
+                    conn.close()
+                    return {"status": "not_found", "message": f"RFID卡 {uid} 不存在"}
+            else:
+                current_id, current_balance = row
+                if mode == "add":
+                    new_balance = current_balance + amount
+                elif mode == "set":
+                    new_balance = amount
+                else:
+                    cur.close()
+                    conn.close()
+                    return {"status": "error", "message": f"无效的操作模式: {mode}"}
+
+                cur.execute(
+                    f"UPDATE {RFID_CARDS_TABLE_NAME} SET balance = ?, updated_at = ? WHERE id = ?",
+                    (new_balance, timestamp, current_id)
+                )
+                conn.commit()
+                log.info(f"RFID卡 {uid} 余额已更新: {current_balance} -> {new_balance}")
+                cur.close()
+                conn.close()
+                return {"status": "success", "message": "余额更新成功", "balance": new_balance}
+        except Exception as e:
+            log.error(f"运行函数[update_rfid_card_balance]时发生错误：{e}")
+            return {"status": "error", "message": str(e)}
+
+    def delete_rfid_card(self, uid: str) -> dict:
+        """删除RFID卡
+        Args:
+            uid: RFID卡的UID
+        Returns:
+            dict: 包含删除状态的字典
+        """
+        if not uid:
+            return {"status": "error", "message": "UID不能为空"}
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(f"SELECT id FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?", (uid,))
+            if not cur.fetchone():
+                cur.close()
+                conn.close()
+                return {"status": "not_found", "message": f"RFID卡 {uid} 不存在"}
+            cur.execute(f"DELETE FROM {RFID_CARDS_TABLE_NAME} WHERE uid = ?", (uid,))
+            conn.commit()
+            log.info(f"删除RFID卡 {uid} 成功")
+            cur.close()
+            conn.close()
+            return {"status": "success", "message": "删除成功"}
+        except Exception as e:
+            log.error(f"运行函数[delete_rfid_card]时发生错误：{e}")
             return {"status": "error", "message": str(e)}
 
     def quit_handler(self):
