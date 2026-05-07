@@ -1,0 +1,147 @@
+.rfid-card-container {
+    padding: 20px;
+}
+
+.rfid-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.rfid-card-header h2 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.rfid-card-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rfid-card-table th,
+.rfid-card-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.rfid-card-table th {
+    background: #34495e;
+    color: #fff;
+    font-weight: normal;
+}
+
+.rfid-card-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.rfid-card-table .balance-positive {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.rfid-card-table .balance-zero {
+    color: #95a5a6;
+}
+
+.rfid-card-table .balance-negative {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.rfid-card-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.rfid-card-toolbar button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-add-card {
+    background: #27ae60;
+    color: white;
+}
+
+.btn-add-card:hover {
+    background: #219a52;
+}
+
+.btn-refresh-cards {
+    background: #3498db;
+    color: white;
+}
+
+.btn-refresh-cards:hover {
+    background: #2980b9;
+}
+
+.rfid-card-table .action-btn {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 4px;
+}
+
+.btn-modify-balance {
+    background: #f39c12;
+    color: white;
+}
+
+.btn-modify-balance:hover {
+    background: #e08e0b;
+}
+
+.btn-delete-card {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-delete-card:hover {
+    background: #c0392b;
+}
+
+.rfid-card-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.rfid-card-pagination button {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.rfid-card-pagination button:hover:not(:disabled) {
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
+}
+
+.rfid-card-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#rfid-card-page-info {
+    font-size: 14px;
+    color: #666;
+}
