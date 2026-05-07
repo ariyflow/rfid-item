@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/data-analysis.css">
     <link rel="stylesheet" href="/static/css/auth.css">
     <link rel="stylesheet" href="/static/css/card-swipe.css">
+    <link rel="stylesheet" href="/static/css/rfid-card.css">
     <script src="/static/js/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -45,6 +46,7 @@
             <li class="active" data-target="delete-section">设备管理</li>
             <li data-target="settings-section">数据分析</li>
             <li data-target="card-swipe-section">刷卡记录</li>
+            <li data-target="rfid-card-section">RFID卡管理</li>
         </ul>
         <div style="padding: 20px; border-top: 1px solid #34495e; margin-top: auto;">
             <span id="current-user" style="font-size: 12px; color: #bdc3c7;"></span>
@@ -168,6 +170,33 @@
                 </div>
             </div>
         </section>
+        <section id="rfid-card-section" class="content-section">
+            <div class="rfid-card-container">
+                <div class="rfid-card-header">
+                    <h2>RFID卡管理</h2>
+                </div>
+                <div class="rfid-card-toolbar">
+                    <button class="btn-add-card" id="rfid-card-add-btn">添加RFID卡</button>
+                    <button class="btn-refresh-cards" id="rfid-card-refresh-btn">刷新</button>
+                </div>
+                <table class="rfid-card-table" id="rfid-card-table">
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>余额</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="rfid-card-pagination">
+                    <button id="rfid-card-prev-btn">上一页</button>
+                    <span id="rfid-card-page-info">第 1 页 / 共 1 页</span>
+                    <button id="rfid-card-next-btn">下一页</button>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script>
@@ -282,9 +311,12 @@
     <script src="/static/js/device-management.js"></script>
     <script src="/static/js/data-analysis.js"></script>
     <script src="/static/js/card-swipe.js"></script>
+    <script src="/static/js/rfid-card.js"></script>
     <script>
         // 初始化刷卡记录
         window.initCardSwipe();
+        // 初始化RFID卡管理
+        window.initRfidCard();
     </script>
 </body>
 </html>
