@@ -7,6 +7,7 @@
 *.drawio
 .codex
 **/CLAUDE.md
+**/AGENTS.md
 
 # ignore directory
 **/.venv/
