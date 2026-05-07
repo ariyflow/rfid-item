@@ -1,10 +1,14 @@
 """刷卡记录 API"""
 
+import re
 from flask import Blueprint, make_response, jsonify, request
 from model.dbObject import db
 import time
 
 card_swipe_bp = Blueprint("card_swipe", __name__, url_prefix="/card_swipe")
+
+# 4字节十六进制UID校验
+_UID_PATTERN = re.compile(r"^[0-9a-f]{8}$")
 
 
 @card_swipe_bp.route("/submit_card_swipe", methods=["POST"])
@@ -18,8 +22,11 @@ def submit_card_swipe_handler():
     if not device_seq:
         return make_response(jsonify({"status": "error", "message": "设备序列号不能为空"}), 400)
 
-    if not rfid_serial:
-        return make_response(jsonify({"status": "error", "message": "RFID序列号不能为空"}), 400)
+    if not rfid_serial or not _UID_PATTERN.match(rfid_serial):
+        return make_response(jsonify({"status": "error", "message": "RFID序列号格式错误"}), 400)
+
+    # 确保RFID卡存在，不存在则自动创建（余额为0）
+    db.ensure_rfid_card(rfid_serial)
 
     result = db.insert_card_swipe(device_seq, rfid_serial, timestamp)
     if result["status"] != "success":
