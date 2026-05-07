@@ -1,9 +1,23 @@
 """RFID卡管理 API"""
 
+import re
 from flask import Blueprint, make_response, jsonify, request
 from model.dbObject import db
 
 rfid_card_bp = Blueprint("rfid_card", __name__, url_prefix="/rfid_card")
+
+# 4字节16进制正则以小写无空格形式存储
+_UID_PATTERN = re.compile(r"^[0-9a-f]{8}$")
+
+def _normalize_uid(raw: str) -> str | None:
+    """清理并验证RFID卡UID。合法的UID是4字节（8字符）十六进制字符串。
+    返回规范化后的小写hex，非法时返回None。
+    """
+    s = raw.strip().replace(" ", "").replace("0x", "").replace("0X", "")
+    s = s.lower()
+    if _UID_PATTERN.match(s):
+        return s
+    return None
 
 
 @rfid_card_bp.route("/get_rfid_cards", methods=["POST"])
@@ -29,10 +43,10 @@ def get_rfid_cards_handler():
 def get_rfid_card_handler():
     """获取单个RFID卡信息"""
     data = request.get_json() or {}
-    uid = data.get("uid", "").strip()
+    uid = _normalize_uid(data.get("uid", ""))
 
-    if not uid:
-        return make_response(jsonify({"status": "error", "message": "UID不能为空"}), 400)
+    if uid is None:
+        return make_response(jsonify({"status": "error", "message": "UID格式错误，需要4字节十六进制（8字符）"}), 400)
 
     result = db.get_rfid_card(uid)
     if result["status"] == "not_found":
@@ -47,11 +61,11 @@ def get_rfid_card_handler():
 def add_rfid_card_handler():
     """添加RFID卡"""
     data = request.get_json() or {}
-    uid = data.get("uid", "").strip()
+    uid = _normalize_uid(data.get("uid", ""))
     balance = float(data.get("balance", 0))
 
-    if not uid:
-        return make_response(jsonify({"status": "error", "message": "UID不能为空"}), 400)
+    if uid is None:
+        return make_response(jsonify({"status": "error", "message": "UID格式错误，需要4字节十六进制（8字符）"}), 400)
 
     if balance < 0:
         return make_response(jsonify({"status": "error", "message": "初始余额不能为负数"}), 400)
@@ -72,12 +86,12 @@ def modify_balance_handler():
         mode: str - "add"（增减，卡不存在时amount>0则自动创建）或 "set"（直接设置）
     """
     data = request.get_json() or {}
-    uid = data.get("uid", "").strip()
+    uid = _normalize_uid(data.get("uid", ""))
     amount = float(data.get("amount", 0))
     mode = data.get("mode", "add")
 
-    if not uid:
-        return make_response(jsonify({"status": "error", "message": "UID不能为空"}), 400)
+    if uid is None:
+        return make_response(jsonify({"status": "error", "message": "UID格式错误，需要4字节十六进制（8字符）"}), 400)
 
     if mode not in ("add", "set"):
         return make_response(jsonify({"status": "error", "message": "无效的操作模式"}), 400)
@@ -102,10 +116,10 @@ def modify_balance_handler():
 def delete_rfid_card_handler():
     """删除RFID卡"""
     data = request.get_json() or {}
-    uid = data.get("uid", "").strip()
+    uid = _normalize_uid(data.get("uid", ""))
 
-    if not uid:
-        return make_response(jsonify({"status": "error", "message": "UID不能为空"}), 400)
+    if uid is None:
+        return make_response(jsonify({"status": "error", "message": "UID格式错误，需要4字节十六进制（8字符）"}), 400)
 
     result = db.delete_rfid_card(uid)
     if result["status"] == "not_found":

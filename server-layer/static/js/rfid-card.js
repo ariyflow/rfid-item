@@ -25,6 +25,10 @@
         alert(message);
     }
 
+    function isValidUid(uid) {
+        return /^[0-9a-f]{8}$/i.test(uid.replace(/[\s]/g, ''));
+    }
+
     function createConfirmModal(message) {
         return new Promise((resolve) => {
             const modal = document.createElement('div');
@@ -131,7 +135,12 @@
                 if (result) {
                     const uidInput = document.getElementById('add-card-uid-input');
                     const balanceInput = document.getElementById('add-card-balance-input');
-                    const uid = uidInput ? uidInput.value.trim() : '';
+                    const raw = uidInput ? uidInput.value.trim() : '';
+                    const uid = raw.replace(/[\s]/g, '').toLowerCase();
+                    if (!isValidUid(raw)) {
+                        showMessage('UID格式错误，需要4字节十六进制（8字符），如 a1b2c3d4');
+                        return;
+                    }
                     const balance = parseFloat(balanceInput ? balanceInput.value : '0') || 0;
                     modal.remove();
                     resolve({ uid, balance });
@@ -311,6 +320,7 @@
                 if (!uid) return;
 
                 if (target.classList.contains('btn-modify-balance')) {
+                    if (!isValidUid(uid)) return;
                     const currentBalance = parseFloat(target.dataset.balance) || 0;
                     const result = await createBalanceModal(uid, currentBalance);
                     if (!result) return;
