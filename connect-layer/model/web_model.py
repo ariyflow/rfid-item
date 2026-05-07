@@ -121,6 +121,20 @@ class webModel(QObject):
         url = f"{self.par.base_url}/dashboard/card_swipe/submit_card_swipe"
         self.webt.add_request(url, "POST", {"device_seq": device_seq, "rfid_serial": rfid})
 
+    def deduct_card_balance(self, uid: str, amount: float):
+        """扣除RFID卡余额（只能减少）
+        Args:
+            uid: RFID卡的UID（8字符十六进制）
+            amount: 扣除金额（正数，内部会转为负数提交）
+        """
+        if amount <= 0:
+            self.par.log.error(f"函数[deduct_card_balance]参数错误：扣除金额必须为正数，传入：{amount}")
+            return
+        url = f"{self.par.base_url}/dashboard/rfid_card/modify_balance"
+        data = {"uid": uid, "amount": -amount, "mode": "add"}
+        self.par.log.info(f"正在扣除RFID卡 {uid} 的余额，金额：{amount}")
+        self.webt.add_request(url, "POST", data)
+
     def resp_parse(self, data: dict):
         """发送的请求得到响应后做处理"""
         self.par.log.debug(f"获取到应用层响应：{data}")
