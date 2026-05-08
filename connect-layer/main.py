@@ -727,7 +727,11 @@ class SerialToolWindow(QMainWindow):
                     self.log.info(f"获取到刷卡信息：{self._show_btyes_with_space(rfid_seq)}")
                     # 保存 seq 和当前时间戳
                     self.rfid_seq_cache[rfid_seq_hex] = current_time
-                
+            elif command == 0x07: # 提交扣款信息
+                rfid_seq = data[4:8]
+                sub_num = data[8:10]
+                self.web.deduct_card_balance(rfid_seq.hex(), int.from_bytes(sub_num, "big"))
+                self.log.debug(f"提交RFID扣款信息：({rfid_seq.hex()},{sub_num.hex()})")
             elif command == 0xFF: # DEBUG模式，不做处理，log中会输出信息
                 msg = ' '.join(f'{b:02X}' for b in data)
                 self.log.debug(f"收到感知层传来的DEBUG信息：{msg}")
@@ -807,6 +811,17 @@ class SerialToolWindow(QMainWindow):
                     
             except Exception as e:
                 self.log.error(f"执行 _setseq_handler 发生错误：{e}")
+        elif data.get("url").endswith("dashboard/rfid_card/modify_balance") and data.get("status") == 200: # 上层传回扣款成功的响应
+            try:
+                msg = json.loads(data.get("resp", ""))
+                if(msg.get("url", "") == "success"):
+                    buf = b"\xaa\x55\x07\x01"+b"\x00"*19
+                    buf = buf+self._get_check_sum(buf)
+                    self.log.debug(f"向从机发送扣款成功响应：{self._show_btyes_with_space(buf)}")
+                    self.serialt.send_data(buf)
+            except Exception as e:
+                self.log.error(f"执行 _setseq_handler 发生错误：{e}")
+
 
     def create_device_seq(self, device_list: list):
         """
