@@ -24,6 +24,7 @@ import random
 import time
 import json
 import math
+import platform
 
 # 常量定义
 BASE_URL = "http://127.0.0.1:5353" # 服务器的url
@@ -485,6 +486,9 @@ class SerialToolWindow(QMainWindow):
             safe_desc = html.escape(str(port.description))
             display = f"{port.device} - {safe_desc}"
             self.comboPort.addItem(display, port.device)
+
+            if platform.system() == "Linux": # linux需要放权
+                os.system(f"sudo chmod 666 {port.device}")
         
         if self.comboPort.count() == 0:
             self.comboPort.addItem("未找到串口", "")
