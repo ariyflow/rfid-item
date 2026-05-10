@@ -20,6 +20,10 @@ xdata unsigned char is_stream_led = 0; // MODE1下控制led是否流水
 xdata unsigned char led_vector = 0x01; // MODE1下的下一个led状态
 xdata unsigned char device_seq[6] = {0,0,0,0,0,0}; // 设备序列号
 xdata unsigned char cur_device_flag = 1; // MODE0模式下控制当前显示的设备序列号（1表示前三个字节，0表示后3个字节）
+xdata unsigned short balance = 0; // MODE2模式下输入的要扣款金额
+xdata char mode2_pos = 0; // MODE2模式下选定的设置位置
+xdata unsigned char mode2_is_setting = 0; // MODE2模式下控制是否设置金额
+xdata char balance_buf[8] = {0,0,0,0,0,0,0,0}; // 金额保存的buf 
 
 code unsigned char test_data[16] = { // 测试数据
 	1,2,3,4,
@@ -269,6 +273,27 @@ void my1SCallback(){
 			commit_sensor_data();
 		}
 	}
+
+	if(mode == 2){
+		// 检测当前是否存在RFID
+
+		if(mode2_is_setting == 0 && balance != 0 && simple_read_uid(uid) == 0x03){
+			// 存在RFID时，需要上报刷卡数据
+			send_buf[2] = 0x08;
+			send_buf[3] = 0x07;
+			send_buf[4] = uid[0];
+			send_buf[5] = uid[1];
+			send_buf[6] = uid[2];
+			send_buf[7] = uid[3];
+			send_buf[8] = balance>>8;
+			send_buf[9] = balance&0xff;
+
+			send_buf[10] = set_checksum(send_buf, 10);
+			uart1Send(send_buf, 11);
+
+			balance = 0;
+		}
+	}
 }
 
 void my100msCallback(){
@@ -292,6 +317,11 @@ void my100msCallback(){
 			setLed(0x00);
 			setNum(0);
 		}
+	}
+	if(mode == 2){
+		// setNum(123456);
+		setSeg(balance_buf[7], balance_buf[6], balance_buf[5], balance_buf[4], balance_buf[3], balance_buf[2], balance_buf[1], balance_buf[0]);
+		if(mode2_is_setting)addPoint(7 - mode2_pos);
 	}
 }
 
@@ -474,6 +504,20 @@ void myUartCallback(){
 			uart1Send(send_buf, 6);
 		}
 	}
+	else if(command == 0x07){
+		// 收到扣款成功响应
+		if(receive_buf[3] == 0x01){
+			unsigned char i = 0;
+			setBeep(200);
+
+			for(i=0;i<8;i++){ // 成功后清空当前设置的金额
+				balance_buf[i] = 0;
+			}
+			balance = 0;
+			mode2_is_setting = 0;
+			mode2_pos = 0;
+		}
+	}
 }
 
 void myADCKeyCallback(){
@@ -522,6 +566,45 @@ void myADCKeyCallback(){
 		key = getADCKeyAct(enumADCKeyDown);
 		if(key == enumKeyPress){
 			cur_device_flag = 1 - cur_device_flag;
+		}
+	}
+	
+	if(mode == 2){
+		key = getADCKeyAct(enumADCKeyCenter);
+		if(key == enumKeyPress){
+			if(mode2_is_setting == 0)mode2_is_setting = 1;
+			else{
+				mode2_is_setting = 0;
+				balance = balance_buf[0] + balance_buf[1]*10 + balance_buf[2]*100 + balance_buf[3]*1000+balance_buf[4]*10000+balance_buf[5]*100000+balance_buf[6]*1000000+balance_buf[7]*10000000;
+			}
+		}
+
+		key = getADCKeyAct(enumADCKeyLeft);
+		if(key == enumKeyPress){
+			if(mode2_pos == 7)mode2_pos = 0;
+			else mode2_pos++;
+		}
+
+		key = getADCKeyAct(enumADCKeyRight);
+		if(key == enumKeyPress){
+			if(mode2_pos == 0)mode2_pos = 7;
+			else mode2_pos--;
+		}
+
+		key = getADCKeyAct(enumADCKeyUp);
+		if(key == enumKeyPress){
+			if(mode2_is_setting){
+				balance_buf[mode2_pos]++;
+				if(balance_buf[mode2_pos] == 10)balance_buf[mode2_pos] = 0;
+			}
+		}
+
+		key = getADCKeyAct(enumADCKeyDown);
+		if(key == enumKeyPress){
+			if(mode2_is_setting){
+				balance_buf[mode2_pos]--;
+				if(balance_buf[mode2_pos] == -1)balance_buf[mode2_pos] = 9;
+			}
 		}
 	}
 

@@ -694,7 +694,7 @@ class dbObject:
 
             if row is None:
                 # 卡不存在
-                if mode == "add" and amount > 0:
+                if mode == "add":
                     # 增加余额时自动创建
                     cur.execute(
                         f"INSERT INTO {RFID_CARDS_TABLE_NAME} (uid, balance, created_at, updated_at) VALUES (?, ?, ?, ?)",

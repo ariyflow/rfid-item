@@ -3,6 +3,7 @@
 import re
 from flask import Blueprint, make_response, jsonify, request
 from model.dbObject import db
+from model.logger import log
 
 rfid_card_bp = Blueprint("rfid_card", __name__, url_prefix="/rfid_card")
 
@@ -99,6 +100,7 @@ def modify_balance_handler():
     if mode == "set" and amount < 0:
         return make_response(jsonify({"status": "error", "message": "设置模式余额不能为负数"}), 400)
 
+    log.debug(f"更新RFID信息:{uid, amount, mode}")
     result = db.update_rfid_card_balance(uid, amount, mode)
     if result["status"] == "not_found":
         return make_response(jsonify({"status": "not_found", "message": result.get("message", f"RFID卡 {uid} 不存在")}), 404)

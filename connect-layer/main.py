@@ -814,7 +814,7 @@ class SerialToolWindow(QMainWindow):
         elif data.get("url").endswith("dashboard/rfid_card/modify_balance") and data.get("status") == 200: # 上层传回扣款成功的响应
             try:
                 msg = json.loads(data.get("resp", ""))
-                if(msg.get("url", "") == "success"):
+                if(msg.get("status", "") == "success"):
                     buf = b"\xaa\x55\x07\x01"+b"\x00"*19
                     buf = buf+self._get_check_sum(buf)
                     self.log.debug(f"向从机发送扣款成功响应：{self._show_btyes_with_space(buf)}")
