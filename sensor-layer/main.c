@@ -30,7 +30,6 @@ code unsigned char test_data[16] = { // 测试数据
 
 sfr P3M1 = 0xB1;
 sfr P3M0 = 0xB2;
-unsigned int is_beep = 0;
 void Delay100us()		//@11.0592MHz
 {
 	unsigned char i, j;
@@ -67,12 +66,6 @@ void myKeyCallback(); // 按键回调
 void myADCKeyCallback(); // ADC按键回调
 void myUartCallback(); // 串口回调
 void read_device_seq(); // 读取设备序列号
-void my1msCallback(){
-	if(is_beep){
-		P3_4 = !P3_4;
-		is_beep--;
-	}
-}
 
 void main() {
   // unsigned char ver;
@@ -90,7 +83,7 @@ void main() {
 	// 现已解决
 	adcInit(); // 暂时不能开adc的中断
 	
-	setCallback(enumEventInt1, my1msCallback);
+	// setCallback(enumEventInt1, my1msCallback);
 	setCallback(enumEventInt100, my100msCallback);
 	setCallback(enumEventKey, myKeyCallback);
 	setCallback(enumEventAdcKey, myADCKeyCallback);
