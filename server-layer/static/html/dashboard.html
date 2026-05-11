@@ -242,8 +242,12 @@
             
             // 处理退出登录
             logoutBtn.addEventListener('click', async () => {
-                await fetch('/admin/logout', { method: 'POST', credentials: 'include' });
-                window.location.href = '/admin';
+                try {
+                    const resp = await fetch('/admin/logout', { method: 'POST', credentials: 'include' });
+                    if (resp.ok) {
+                        window.location.href = '/admin';
+                    }
+                } catch (_) {}
             });
         })();
 

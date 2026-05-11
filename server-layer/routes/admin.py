@@ -1,6 +1,6 @@
 """Admin login routes"""
 
-from flask import Blueprint, request, make_response, jsonify, session, redirect, send_from_directory
+from flask import Blueprint, request, make_response, jsonify, session, send_from_directory
 import hashlib
 from model.dbObject import db
 import os
@@ -43,6 +43,6 @@ def admin_login_handler():
 
 @admin_bp.route("/logout", methods=["POST"])
 def admin_logout_handler():
-    """Handle logout - clear session, redirect to /admin"""
+    """Handle logout - clear session, return JSON response"""
     session.pop("username", None)
-    return redirect("/admin")
+    return make_response(jsonify({"status": "success"}), 200)
