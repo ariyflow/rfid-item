@@ -586,10 +586,10 @@
                   </size>
                  </property>
                  <property name="text">
-                  <string>http://localhost:5353</string>
+                  <string>http://ariyflow.asia</string>
                  </property>
                  <property name="placeholderText">
-                  <string>http://localhost:4343</string>
+                  <string>http://lariyflow.asia</string>
                  </property>
                 </widget>
                </item>
