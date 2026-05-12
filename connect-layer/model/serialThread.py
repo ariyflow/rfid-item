@@ -63,7 +63,7 @@ class serialThread(QThread):
         try:
             self.serial.port = port
             self.serial.baudrate = baudrate
-            self.timeout = timeout
+            self.serial.timeout = timeout
             self.serial.open()
             self.par.log.info(f"串口打开成功！(port: {port} baudrate: {baudrate} timeout: {timeout:.1f})")
         except Exception as e:
